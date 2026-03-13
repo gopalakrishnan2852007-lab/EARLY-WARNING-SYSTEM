@@ -12,8 +12,8 @@ import AIChatAssistant from "./components/AIChatAssistant";
 import CommunityReportModal from "./components/CommunityReportModal";
 import NewsTicker from "./components/NewsTicker";
 
-// Important: Change this to your deployed backend URL when you push online.
-const API = "http://localhost:10000";
+// 🔥 FIXED: Pointing to your LIVE Render Backend instead of localhost
+const API = "https://early-warning-system-fh1y.onrender.com";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -121,6 +121,7 @@ export default function App() {
 
     fetchInitialData();
 
+    // Setup WebSocket to LIVE backend
     const socket = io(API, { transports: ["websocket", "polling"] });
 
     socket.on('connect', () => setIsConnected(true));
@@ -356,9 +357,9 @@ export default function App() {
                   <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
                     {alerts.length > 0 ? (
                       alerts.map((alert, index) => (
-                        <div key={alert.id || index} className={`p-4 rounded-2xl border ${alert.message.includes('Fire') ? 'border-red-500/30 bg-red-500/10' : 'border-blue-500/20 bg-blue-500/5'} shadow-inner shrink-0`}>
+                        <div key={alert.id || index} className={`p-4 rounded-2xl border ${alert.message?.includes('Fire') || alert.type === 'Fire' ? 'border-red-500/30 bg-red-500/10' : 'border-blue-500/20 bg-blue-500/5'} shadow-inner shrink-0`}>
                           <div className="flex items-center justify-between mb-1">
-                            <span className={`text-xs font-bold uppercase tracking-widest ${alert.message.includes('Fire') ? 'text-red-400' : 'text-blue-400'}`}>{alert.severity}</span>
+                            <span className={`text-xs font-bold uppercase tracking-widest ${alert.message?.includes('Fire') || alert.type === 'Fire' ? 'text-red-400' : 'text-blue-400'}`}>{alert.severity}</span>
                             <span className="text-xs text-slate-500">{new Date(alert.timestamp).toLocaleTimeString()}</span>
                           </div>
                           <p className="text-sm text-slate-200">{alert.message}</p>
