@@ -30,7 +30,7 @@ app.use(express.json());
 app.get("/", (req, res) => {
 res.json({
 status: "active",
-message: "🚀 AI Disaster Early Warning System Engine Running"
+message: "AI Disaster Early Warning System Engine Running"
 });
 });
 
@@ -74,14 +74,14 @@ res.status(500).json({ error: err.message });
 
 // WebSocket connection
 io.on("connection", (socket) => {
-console.log("📡 Client connected:", socket.id);
+console.log("Client connected:", socket.id);
 
 socket.emit("connection_established", {
 message: "Connected to Disaster Warning Server"
 });
 
 socket.on("disconnect", () => {
-console.log("⚠️ Client disconnected:", socket.id);
+console.log("Client disconnected:", socket.id);
 });
 });
 
@@ -90,24 +90,24 @@ async function startServer() {
 try {
 
 ```
-// Connect Redis ONLY if REDIS_URL exists
+// Connect Redis only if REDIS_URL exists
 if (process.env.REDIS_URL) {
   try {
     await connectRedis();
-    console.log("✅ Redis connected");
+    console.log("Redis connected");
   } catch (err) {
-    console.log("⚠️ Redis connection failed");
+    console.log("Redis connection failed");
   }
 } else {
-  console.log("⚠️ REDIS_URL not set, skipping Redis connection");
+  console.log("REDIS_URL not set, skipping Redis connection");
 }
 
-// Start cron jobs safely
+// Start cron jobs
 try {
   startCronJobs();
-  console.log("✅ Cron jobs started");
+  console.log("Cron jobs started");
 } catch (err) {
-  console.log("⚠️ Cron jobs failed to start");
+  console.log("Cron jobs failed to start");
 }
 
 global.io = io;
@@ -115,12 +115,12 @@ global.io = io;
 const PORT = process.env.PORT || 10000;
 
 server.listen(PORT, () => {
-  console.log(`🔥 Disaster Warning Engine running on port ${PORT}`);
+  console.log("Disaster Warning Engine running on port " + PORT);
 });
 ```
 
 } catch (error) {
-console.error("❌ Server failed to start:", error);
+console.error("Server failed to start:", error);
 }
 }
 
