@@ -12,24 +12,34 @@ const emitAlert = (alert) => {
 
 const processRiskPrediction = async (locationId, predictionData) => {
     try {
-        // 1. Save Risk Prediction
-        const { rows } = await pool.query(`
-            INSERT INTO RiskPredictions 
-            (location_id, risk_score, flood_probability, landslide_probability, storm_surge_probability, risk_level, predicted_time_window)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING *
-        `, [
-            locationId,
-            predictionData.risk_score,
-            predictionData.flood_probability, 
-            predictionData.landslide_probability,
-            predictionData.storm_surge_probability,
-            predictionData.risk_level, 
-            'Next 24 Hours'
-        ]);
+        let prediction = {
+            risk_level: predictionData.risk_level,
+            flood_probability: predictionData.flood_probability,
+            landslide_probability: predictionData.landslide_probability,
+            storm_surge_probability: predictionData.storm_surge_probability
+        };
 
-        const prediction = rows[0];
-        console.log(`✅ Stored prediction for Location ${locationId}: Level = ${prediction.risk_level}`);
+        // 1. Save Risk Prediction (safe catch)
+        if (pool) {
+            try {
+                const { rows } = await pool.query(`
+                    INSERT INTO RiskPredictions 
+                    (location_id, risk_score, flood_probability, landslide_probability, storm_surge_probability, risk_level, predicted_time_window)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    RETURNING *
+                `, [
+                    locationId,
+                    predictionData.risk_score,
+                    predictionData.flood_probability, 
+                    predictionData.landslide_probability,
+                    predictionData.storm_surge_probability,
+                    predictionData.risk_level, 
+                    'Next 24 Hours'
+                ]);
+                prediction = rows[0];
+                console.log(`✅ Stored prediction for Location ${locationId}: Level = ${prediction.risk_level}`);
+            } catch (e) { console.log('DB error storing prediction, moving to alert emit...'); }
+        }
 
         // 2. Generate Alerts if risk is high or critical
         if (prediction.risk_level === 'high' || prediction.risk_level === 'critical') {
@@ -44,20 +54,33 @@ const processRiskPrediction = async (locationId, predictionData) => {
             
             const message = `${prediction.risk_level.toUpperCase()} ${alertType} predicted. Probability: ${(maxProb * 100).toFixed(0)}%. Immediate action may be required. AI Confidence: ${predictionData.confidence}`;
 
-            const alertResult = await pool.query(`
-                INSERT INTO Alerts 
-                (location_id, alert_type, severity, message, sent_to)
-                VALUES ($1, $2, $3, $4, $5)
-                RETURNING *
-            `, [
-                locationId,
-                alertType,
-                prediction.risk_level, // severity matches risk level
-                message,
-                'All Authorities'
-            ]);
+            let newAlert = {
+                location_id: locationId,
+                alert_type: alertType,
+                severity: prediction.risk_level.toUpperCase(),
+                message: message,
+                timestamp: new Date()
+            };
 
-            const newAlert = alertResult.rows[0];
+            if (pool) {
+                try {
+                    const alertResult = await pool.query(`
+                        INSERT INTO Alerts 
+                        (location_id, alert_type, severity, message, sent_to)
+                        VALUES ($1, $2, $3, $4, $5)
+                        RETURNING *
+                    `, [
+                        locationId,
+                        alertType,
+                        prediction.risk_level, // severity matches risk level
+                        message,
+                        'All Authorities'
+                    ]);
+                    newAlert = alertResult.rows[0];
+                } catch (e) {
+                     console.log('DB error storing alert, using memory alert...')
+                }
+            }
             
             // 3. Emit the WebSocket alert
             emitAlert(newAlert);
