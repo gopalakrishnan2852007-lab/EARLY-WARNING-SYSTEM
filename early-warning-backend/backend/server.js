@@ -34,11 +34,13 @@ const TN_LOCATIONS = [
 // Memory store for real-time live data
 let liveSensorData = {};
 
-// Initialize with safe baseline data
+// Initialize with safe baseline data including LAT/LNG
 TN_LOCATIONS.forEach(loc => {
   liveSensorData[loc.id] = {
     location_id: loc.id,
     name: loc.name,
+    latitude: loc.latitude,
+    longitude: loc.longitude,
     rainfall: 0.0,
     temperature: 32.0,
     humidity: 60.0,
@@ -60,14 +62,13 @@ async function fetchRealTNWeather() {
       const current = response.data.current;
       const hourly = response.data.hourly;
 
-      // Update memory store with REAL data
       liveSensorData[loc.id] = {
         ...liveSensorData[loc.id],
         temperature: current.temperature_2m,
         humidity: current.relative_humidity_2m,
         rainfall: current.precipitation,
         wind_speed: current.wind_speed_10m,
-        soil_moisture: hourly.soil_moisture_0_to_7cm[0] * 100 || 45.0, // convert to percentage
+        soil_moisture: hourly.soil_moisture_0_to_7cm[0] * 100 || 45.0,
         timestamp: new Date()
       };
     });
@@ -75,34 +76,27 @@ async function fetchRealTNWeather() {
     await Promise.all(promises);
     console.log("✅ Synced accurate real-time weather data for Tamil Nadu");
   } catch (error) {
-    console.error("⚠️ Weather API Sync Failed. Using base heuristics.", error.message);
+    console.error("⚠️ Weather API Sync Failed. Using base heuristics.");
   }
 }
 
-// Fetch real data every 5 minutes to prevent rate limiting
 fetchRealTNWeather();
 setInterval(fetchRealTNWeather, 5 * 60 * 1000);
 
 // ==========================================
-// 🧠 AI RISK PREDICTION ENGINE
+// 🧠 AI RISK PREDICTION ENGINE (Flood & Fire)
 // ==========================================
 function calculateRisks(data) {
-  // 1. Flood Risk (Rainfall & River Level)
   const floodRisk = Math.min(((data.river_level / 8) * 0.6) + ((data.rainfall / 50) * 0.4), 1);
-
-  // 2. Landslide Risk (Rainfall & High Soil Moisture)
   const landslideRisk = Math.min(((data.soil_moisture / 100) * 0.5) + ((data.rainfall / 50) * 0.5), 1);
-
-  // 3. Storm Surge Risk (Wind Speed)
   const surgeRisk = Math.min(data.wind_speed / 150, 1);
 
-  // 4. 🔥 FIRE RISK (High Temp, Low Humidity, High Wind, Low Soil Moisture)
   let fireRisk = 0;
   if (data.temperature > 30) {
-    const tempFactor = Math.min((data.temperature - 30) / 20, 1) * 0.4; // Max at 50°C
-    const humFactor = Math.max((100 - data.humidity) / 100, 0) * 0.3; // Lower humidity = higher risk
+    const tempFactor = Math.min((data.temperature - 30) / 20, 1) * 0.4;
+    const humFactor = Math.max((100 - data.humidity) / 100, 0) * 0.3;
     const windFactor = Math.min(data.wind_speed / 100, 1) * 0.2;
-    const soilFactor = Math.max((100 - data.soil_moisture) / 100, 0) * 0.1; // Dry soil
+    const soilFactor = Math.max((100 - data.soil_moisture) / 100, 0) * 0.1;
     fireRisk = tempFactor + humFactor + windFactor + soilFactor;
   }
 
@@ -122,15 +116,10 @@ function calculateRisks(data) {
 // 🚀 ROUTES
 // ==========================================
 app.get("/", (req, res) => res.json({ status: "active", location: "Tamil Nadu", message: "AquaGuard AI Engine Running" }));
-
 app.get("/api/locations", (req, res) => res.json(TN_LOCATIONS));
-
-app.get("/api/latest-data", (req, res) => {
-  res.json(Object.values(liveSensorData));
-});
+app.get("/api/latest-data", (req, res) => res.json(Object.values(liveSensorData)));
 
 app.get("/api/alerts", (req, res) => {
-  // Dynamic alerts based on real TN data
   const alerts = [];
   Object.values(liveSensorData).forEach(data => {
     const risks = calculateRisks(data);
@@ -147,7 +136,6 @@ app.get("/api/alerts", (req, res) => {
 app.post("/api/simulate", (req, res) => {
   try {
     const { rainfall, river_level, soil_moisture, wind_speed, temperature, humidity } = req.body;
-
     const simulatedData = { rainfall, river_level, soil_moisture, wind_speed, temperature, humidity };
     const predictions = calculateRisks(simulatedData);
 
@@ -161,14 +149,11 @@ app.post("/api/simulate", (req, res) => {
 });
 
 // ==========================================
-// ⚡ REAL-TIME WEBSOCKET STREAM (MICRO-FLUCTUATIONS)
+// ⚡ REAL-TIME WEBSOCKET STREAM
 // ==========================================
-// This adds tiny realistic UI fluctuations every 3 seconds without spamming the real API
 setInterval(() => {
   TN_LOCATIONS.forEach(loc => {
     let current = liveSensorData[loc.id];
-
-    // Tiny micro-fluctuations to make UI look alive
     current.temperature = (Number(current.temperature) + (Math.random() * 0.2 - 0.1)).toFixed(1);
     current.humidity = Math.max(0, Math.min(100, (Number(current.humidity) + (Math.random() * 0.4 - 0.2)))).toFixed(1);
     current.wind_speed = Math.max(0, (Number(current.wind_speed) + (Math.random() * 1.0 - 0.5)).toFixed(1));

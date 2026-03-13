@@ -26,7 +26,7 @@ export default function App() {
   const [riskData, setRiskData] = useState({});
   const [timelineData, setTimelineData] = useState([]);
 
-  // Simulation State (Added Fire Metrics)
+  // Simulation State 
   const [simTemperature, setSimTemperature] = useState(38);
   const [simHumidity, setSimHumidity] = useState(30);
   const [simRainfall, setSimRainfall] = useState(0);
