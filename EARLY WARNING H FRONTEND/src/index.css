@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@import "leaflet/dist/leaflet.css";
+
+/* 
+  Global map height and ensuring leaflet controls look correct in dark mode 
+*/
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+}
+
+@theme {
+  --color-green-safe: #10b981;
+  --color-yellow-mod: #f59e0b;
+  --color-orange-high: #f97316;
+  --color-red-crit: #ef4444;
+}
+
+body {
+  background-color: #0f172a; /* Slate 900 for modern dark dashboard */
+  color: #f8fafc;
+}
+
+/* Custom scrollbar for modern feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
