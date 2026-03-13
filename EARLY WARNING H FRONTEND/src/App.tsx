@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
-import { Activity, AlertTriangle, Bell, CloudRain, Droplets, Layers, LayoutGrid, Map as MapIcon, Search, Waves, Zap, TrendingUp, TrendingDown, ShieldCheck, Radio, Clock, ChevronRight, User } from "lucide-react";
+import { Activity, AlertTriangle, Bell, CloudRain, Droplets, Layers, LayoutGrid, Map as MapIcon, Search, Waves, Zap, TrendingUp, TrendingDown, ShieldCheck, Radio, Clock, ChevronRight, User, Wifi } from "lucide-react";
 
 import DisasterMap from "./components/DisasterMap";
 import RiskTimelineChart from "./components/RiskTimelineChart";
@@ -8,25 +8,27 @@ import AIChatAssistant from "./components/AIChatAssistant";
 import CommunityReportModal from "./components/CommunityReportModal";
 import NewsTicker from "./components/NewsTicker";
 
-const API = "https://early-warning-system-fh1y.onrender.com"; // Production Render backend
+// Dynamic API detection (Use Render URL in prod, or local if testing locally)
+const API = "https://early-warning-system-fh1y.onrender.com"; 
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-  const [alerts, setAlerts] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState([]);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isConnected, setIsConnected] = useState(false); // New: Tracks live server status
 
   // Realtime Data State
-  const [sensorData, setSensorData] = useState<Record<string, any>>({});
-  const [riskData, setRiskData] = useState<Record<string, any>>({});
-  const [timelineData, setTimelineData] = useState<any[]>([]);
+  const [sensorData, setSensorData] = useState({});
+  const [riskData, setRiskData] = useState({});
+  const [timelineData, setTimelineData] = useState([]);
 
   // Simulation State
   const [simRainfall, setSimRainfall] = useState(120);
   const [simRiverLevel, setSimRiverLevel] = useState(2.5);
   const [simSoilMoisture, setSimSoilMoisture] = useState(85);
   const [simWindSpeed, setSimWindSpeed] = useState(85);
-  const [simResult, setSimResult] = useState<any>(null);
+  const [simResult, setSimResult] = useState(null);
   const [isSimulating, setIsSimulating] = useState(false);
 
   const runSimulation = async () => {
@@ -51,27 +53,26 @@ export default function App() {
     }
   };
 
-  // Socket Connection & Initial Data Fetch
   useEffect(() => {
-    // 1. Fetch initial data so dashboard isn't empty while waiting for first socket event
+    // 1. Fetch initial data safely
     const fetchInitialData = async () => {
       try {
         const [dataRes, alertsRes] = await Promise.all([
-          fetch(`${API}/api/latest-data`),
-          fetch(`${API}/api/alerts`)
+          fetch(`${API}/api/latest-data`).catch(() => null),
+          fetch(`${API}/api/alerts`).catch(() => null)
         ]);
 
-        if (dataRes.ok) {
+        if (dataRes && dataRes.ok) {
           const latestData = await dataRes.json();
-          // Map array to object dictionary keyed by location_id
-          const newSensors: Record<string, any> = {};
-          latestData.forEach((item: any) => {
+          const newSensors = {};
+          // Ensure mapping structure is correct
+          latestData.forEach((item) => {
             newSensors[item.location_id] = item;
           });
-          setSensorData(prev => ({ ...prev, ...newSensors }));
+          setSensorData(newSensors);
         }
 
-        if (alertsRes.ok) {
+        if (alertsRes && alertsRes.ok) {
           const latestAlerts = await alertsRes.json();
           setAlerts(latestAlerts);
         }
@@ -83,16 +84,15 @@ export default function App() {
     fetchInitialData();
 
     // 2. Setup Sockets for realtime streaming
-    const socket = io(API);
+    const socket = io(API, { transports: ["websocket", "polling"] });
 
-    socket.on('connection_established', (msg) => {
-      console.log(msg);
-    });
+    socket.on('connect', () => setIsConnected(true));
+    socket.on('disconnect', () => setIsConnected(false));
 
     socket.on('sensorUpdate', (payload) => {
       setSensorData(prev => ({
         ...prev,
-        [payload.location_id]: payload.data
+        [payload.location_id]: { ...prev[payload.location_id], ...payload.data }
       }));
     });
 
@@ -102,9 +102,8 @@ export default function App() {
         [payload.location_id]: payload.prediction
       }));
 
-      // Build timeline history
       setTimelineData(prev => {
-        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second:'2-digit' });
         const latest = {
           time: timeStr,
           flood: payload.prediction.flood_probability * 100,
@@ -112,40 +111,31 @@ export default function App() {
           surge: payload.prediction.storm_surge_probability * 100
         };
         const updated = [...prev, latest];
-        return updated.length > 20 ? updated.slice(updated.length - 20) : updated;
+        return updated.length > 15 ? updated.slice(updated.length - 15) : updated;
       });
     });
 
     socket.on('new_alert', (payload) => {
-      setAlerts(prev => [payload, ...prev].slice(0, 50)); // keep last 50 for ticker
+      setAlerts(prev => [payload, ...prev].slice(0, 50)); 
     });
 
-    return () => {
-      socket.disconnect();
-    };
+    return () => socket.disconnect();
   }, []);
 
   const previousAlertCount = useRef(0);
 
-  // AI Voice Announcer & Pulse Alarm
   useEffect(() => {
     if (alerts.length > previousAlertCount.current && alerts.length > 0) {
       const latestAlert = alerts[0];
-
-      // Play Sound
       try {
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // futuristic beep
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); 
         audio.volume = 0.5;
-        audio.play().catch(e => console.log('Audio Autoplay blocked by browser. User must interact first.'));
+        audio.play().catch(() => {});
       } catch (e) { }
 
-      // Voice Announce
       if (latestAlert.severity === 'CRITICAL' || latestAlert.severity === 'WARNING') {
         if ('speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(`AI System Warning: ${latestAlert.severity} threat detected. ${latestAlert.message.split('.')[0]}`);
-          utterance.pitch = 0.9;
-          utterance.rate = 1.05;
-          utterance.volume = 0.8;
+          const utterance = new SpeechSynthesisUtterance(`Warning: ${latestAlert.message.split('.')[0]}`);
           window.speechSynthesis.speak(utterance);
         }
       }
@@ -154,39 +144,47 @@ export default function App() {
   }, [alerts]);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date().toLocaleTimeString());
-    }, 1000);
+    const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Compute aggregate metrics from latest sensor readings
-  const calcAvg = (key: string, defaultVal: string) => {
+  // FIXED: Safe calculation to prevent 0.0 or NaN
+  const calcAvg = (key, defaultVal) => {
     const keys = Object.keys(sensorData);
     if (keys.length === 0) return defaultVal;
-    const sum = keys.reduce((acc, k) => acc + Number(sensorData[k][key]), 0);
-    return (sum / keys.length).toFixed(1);
+    
+    let validCount = 0;
+    const sum = keys.reduce((acc, k) => {
+      const val = Number(sensorData[k]?.[key]);
+      if (!isNaN(val)) {
+        validCount++;
+        return acc + val;
+      }
+      return acc;
+    }, 0);
+
+    return validCount === 0 ? defaultVal : (sum / validCount).toFixed(1);
   };
 
   const metrics = [
     {
       id: "precip", label: "Avg Rainfall",
-      value: calcAvg("rainfall", "0.0"), unit: "mm/h", trend: "--",
+      value: calcAvg("rainfall", "0.0"), unit: "mm/h",
       icon: CloudRain, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20"
     },
     {
       id: "level", label: "Avg River Level",
-      value: calcAvg("river_level", "0.0"), unit: "m", trend: "--",
-      icon: Waves, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", alert: true
+      value: calcAvg("river_level", "0.0"), unit: "m",
+      icon: Waves, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20"
     },
     {
       id: "soil", label: "Avg Soil Moisture",
-      value: calcAvg("soil_moisture", "0.0"), unit: "%", trend: "--",
+      value: calcAvg("soil_moisture", "0.0"), unit: "%",
       icon: Droplets, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20"
     },
     {
       id: "flow", label: "Avg Wind Speed",
-      value: calcAvg("wind_speed", "0.0"), unit: "km/h", trend: "--",
+      value: calcAvg("wind_speed", "0.0"), unit: "km/h",
       icon: Activity, color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20"
     }
   ];
@@ -240,6 +238,10 @@ export default function App() {
               <Clock className="w-4 h-4 text-indigo-400" />
               {currentTime}
             </div>
+            <div className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border ${isConnected ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+              <Wifi className="w-3 h-3" />
+              {isConnected ? 'LIVE' : 'OFFLINE'}
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
@@ -269,10 +271,7 @@ export default function App() {
               {/* METRICS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {metrics.map(m => (
-                  <div
-                    key={m.id}
-                    className={`bg-white/5 border ${m.border} rounded-3xl p-6 backdrop-blur-sm shadow-xl hover:-translate-y-1 transition-transform cursor-default relative overflow-hidden`}
-                  >
+                  <div key={m.id} className={`bg-white/5 border ${m.border} rounded-3xl p-6 backdrop-blur-sm shadow-xl hover:-translate-y-1 transition-transform cursor-default relative overflow-hidden`}>
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] rounded-full blur-2xl -mr-10 -mt-10" />
                     <div className="flex justify-between mb-4">
                       <div className={`w-12 h-12 rounded-xl ${m.bg} flex items-center justify-center border border-white/5`}>
@@ -281,7 +280,7 @@ export default function App() {
                     </div>
                     <p className="text-sm text-slate-400 font-medium uppercase tracking-wider">{m.label}</p>
                     <div className="flex items-baseline gap-1 mt-2">
-                      <h2 className="text-4xl font-bold text-white">{m.value}</h2>
+                      <h2 className="text-4xl font-bold text-white transition-all">{m.value}</h2>
                       <span className="text-slate-500 font-medium">{m.unit}</span>
                     </div>
                   </div>
@@ -292,7 +291,7 @@ export default function App() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-white/5 border border-white/5 rounded-3xl p-6 shadow-xl backdrop-blur-sm">
                   <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-indigo-400" /> AI Risk Forecast Trends
+                    <TrendingUp className="w-5 h-5 text-indigo-400" /> Live AI Risk Forecast
                   </h3>
                   <RiskTimelineChart data={timelineData} />
                 </div>
@@ -303,10 +302,7 @@ export default function App() {
                   <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
                     {alerts.length > 0 ? (
                       alerts.map((alert, index) => (
-                        <div
-                          key={alert.id || index}
-                          className="p-4 rounded-2xl border border-red-500/20 bg-red-500/5 shadow-inner shrink-0"
-                        >
+                        <div key={alert.id || index} className="p-4 rounded-2xl border border-red-500/20 bg-red-500/5 shadow-inner shrink-0">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-bold text-red-400 uppercase tracking-widest">{alert.severity}</span>
                             <span className="text-xs text-slate-500">{new Date(alert.timestamp).toLocaleTimeString()}</span>
@@ -328,10 +324,6 @@ export default function App() {
 
           {activeTab === 'map' && (
             <div className="absolute inset-0 m-6 rounded-3xl overflow-hidden border-2 border-indigo-500/30 shadow-[0_0_30px_rgba(79,70,229,0.2)] bg-[#0A0A0B]">
-              <div className="radar-overlay-container">
-                <div className="radar-sweep"></div>
-                <div className="map-scanlines"></div>
-              </div>
               <DisasterMap sensors={sensorData} risks={riskData} />
             </div>
           )}
@@ -349,19 +341,10 @@ export default function App() {
               <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">
                 {alerts.length > 0 ? (
                   alerts.map((alert, index) => (
-                    <div
-                      key={alert.id || index}
-                      className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center gap-4 ${alert.severity === 'CRITICAL' ? 'bg-red-500/10 border-red-500/30' :
-                        alert.severity === 'WARNING' ? 'bg-orange-500/10 border-orange-500/30' :
-                          'bg-blue-500/10 border-blue-500/30'
-                        }`}
-                    >
+                    <div key={alert.id || index} className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center gap-4 ${alert.severity === 'CRITICAL' ? 'bg-red-500/10 border-red-500/30' : alert.severity === 'WARNING' ? 'bg-orange-500/10 border-orange-500/30' : 'bg-blue-500/10 border-blue-500/30'}`}>
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${alert.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-400' :
-                            alert.severity === 'WARNING' ? 'bg-orange-500/20 text-orange-400' :
-                              'bg-blue-500/20 text-blue-400'
-                            }`}>
+                          <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${alert.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-400' : alert.severity === 'WARNING' ? 'bg-orange-500/20 text-orange-400' : 'bg-blue-500/20 text-blue-400'}`}>
                             {alert.severity}
                           </span>
                           <span className="text-sm text-slate-400 flex items-center gap-1">
@@ -371,9 +354,6 @@ export default function App() {
                         </div>
                         <p className="text-slate-200 text-lg">{alert.message}</p>
                       </div>
-                      <button className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm transition-colors shrink-0">
-                        Acknowledge
-                      </button>
                     </div>
                   ))
                 ) : (
@@ -400,31 +380,19 @@ export default function App() {
 
                   <div className="space-y-4 bg-white/5 p-5 rounded-2xl border border-white/5">
                     <div>
-                      <label className="flex justify-between text-sm mb-2">
-                        <span className="text-slate-300">Rainfall Intensity</span>
-                        <span className="text-indigo-400 font-bold">{simRainfall} mm/h</span>
-                      </label>
+                      <label className="flex justify-between text-sm mb-2"><span className="text-slate-300">Rainfall Intensity</span><span className="text-indigo-400 font-bold">{simRainfall} mm/h</span></label>
                       <input type="range" className="w-full accent-indigo-500" min="0" max="300" value={simRainfall} onChange={(e) => setSimRainfall(Number(e.target.value))} />
                     </div>
                     <div>
-                      <label className="flex justify-between text-sm mb-2">
-                        <span className="text-slate-300">River Level Offset</span>
-                        <span className="text-blue-400 font-bold">+{simRiverLevel} m</span>
-                      </label>
+                      <label className="flex justify-between text-sm mb-2"><span className="text-slate-300">River Level Offset</span><span className="text-blue-400 font-bold">+{simRiverLevel} m</span></label>
                       <input type="range" className="w-full accent-blue-500" min="0" max="10" step="0.1" value={simRiverLevel} onChange={(e) => setSimRiverLevel(Number(e.target.value))} />
                     </div>
                     <div>
-                      <label className="flex justify-between text-sm mb-2">
-                        <span className="text-slate-300">Soil Moisture Saturation</span>
-                        <span className="text-emerald-400 font-bold">{simSoilMoisture}%</span>
-                      </label>
+                      <label className="flex justify-between text-sm mb-2"><span className="text-slate-300">Soil Moisture Saturation</span><span className="text-emerald-400 font-bold">{simSoilMoisture}%</span></label>
                       <input type="range" className="w-full accent-emerald-500" min="0" max="100" value={simSoilMoisture} onChange={(e) => setSimSoilMoisture(Number(e.target.value))} />
                     </div>
                     <div>
-                      <label className="flex justify-between text-sm mb-2">
-                        <span className="text-slate-300">Wind Speed</span>
-                        <span className="text-amber-400 font-bold">{simWindSpeed} km/h</span>
-                      </label>
+                      <label className="flex justify-between text-sm mb-2"><span className="text-slate-300">Wind Speed</span><span className="text-amber-400 font-bold">{simWindSpeed} km/h</span></label>
                       <input type="range" className="w-full accent-amber-500" min="0" max="250" value={simWindSpeed} onChange={(e) => setSimWindSpeed(Number(e.target.value))} />
                     </div>
                     <button onClick={runSimulation} disabled={isSimulating} className="w-full mt-4 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] flex justify-center items-center">
@@ -438,26 +406,14 @@ export default function App() {
                   <div className="relative text-center w-full">
                     {simResult ? (
                       <>
-                        <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center mx-auto mb-4 ${simResult.risk_level === 'critical' ? 'border-red-500/30' :
-                          simResult.risk_level === 'high' ? 'border-orange-500/30' :
-                            simResult.risk_level === 'moderate' ? 'border-amber-500/30' : 'border-emerald-500/30'
-                          }`}>
-                          <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg ${simResult.risk_level === 'critical' ? 'bg-red-500' :
-                            simResult.risk_level === 'high' ? 'bg-orange-500' :
-                              simResult.risk_level === 'moderate' ? 'bg-amber-500' : 'bg-emerald-500'
-                            }`}>
+                        <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center mx-auto mb-4 ${simResult.risk_level === 'critical' ? 'border-red-500/30' : simResult.risk_level === 'high' ? 'border-orange-500/30' : simResult.risk_level === 'moderate' ? 'border-amber-500/30' : 'border-emerald-500/30'}`}>
+                          <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg ${simResult.risk_level === 'critical' ? 'bg-red-500' : simResult.risk_level === 'high' ? 'bg-orange-500' : simResult.risk_level === 'moderate' ? 'bg-amber-500' : 'bg-emerald-500'}`}>
                             {simResult.risk_level === 'safe' ? <ShieldCheck className="w-8 h-8 text-white" /> : <AlertTriangle className="w-8 h-8 text-white" />}
                           </div>
                         </div>
                         <h3 className="text-2xl font-black text-white mb-2 tracking-wide uppercase">{simResult.risk_level} Risk</h3>
-                        <p className={`font-medium mb-6 ${simResult.risk_level === 'critical' ? 'text-red-400' :
-                          simResult.risk_level === 'high' ? 'text-orange-400' :
-                            simResult.risk_level === 'moderate' ? 'text-amber-400' : 'text-emerald-400'
-                          }`}>
-                          Max Probability: {(simResult.risk_score * 100).toFixed(0)}%
-                        </p>
-
-                        <div className="grid grid-cols-3 gap-3 text-left">
+                        
+                        <div className="grid grid-cols-3 gap-3 text-left mt-6">
                           <div className="bg-white/5 p-3 rounded-xl border border-white/5">
                             <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 text-center">Flood</div>
                             <div className="text-lg font-bold text-blue-400 text-center">{(simResult.flood_probability * 100).toFixed(0)}%</div>
@@ -486,16 +442,11 @@ export default function App() {
               </div>
             </div>
           )}
-
         </div>
       </main>
 
-      {/* AI CHAT + REPORT MODAL */}
       <AIChatAssistant />
-      <CommunityReportModal
-        isOpen={isReportOpen}
-        onClose={() => setIsReportOpen(false)}
-      />
+      <CommunityReportModal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} />
     </div>
   );
 }
