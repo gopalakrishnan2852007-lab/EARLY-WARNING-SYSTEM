@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
 import { Activity, AlertTriangle, Bell, CloudRain, Droplets, Layers, LayoutGrid, Map as MapIcon, Search, Waves, Zap, TrendingUp, TrendingDown, ShieldCheck, Radio, Clock, ChevronRight, User } from "lucide-react";
 
@@ -6,6 +6,7 @@ import DisasterMap from "./components/DisasterMap";
 import RiskTimelineChart from "./components/RiskTimelineChart";
 import AIChatAssistant from "./components/AIChatAssistant";
 import CommunityReportModal from "./components/CommunityReportModal";
+import NewsTicker from "./components/NewsTicker";
 
 const API = "https://early-warning-system-fh1y.onrender.com"; // Production Render backend
 
@@ -84,13 +85,41 @@ export default function App() {
     });
 
     socket.on('new_alert', (payload) => {
-      setAlerts(prev => [payload, ...prev].slice(0, 10)); // keep last 10
+      setAlerts(prev => [payload, ...prev].slice(0, 50)); // keep last 50 for ticker
     });
 
     return () => {
       socket.disconnect();
     };
   }, []);
+
+  const previousAlertCount = useRef(0);
+
+  // AI Voice Announcer & Pulse Alarm
+  useEffect(() => {
+    if (alerts.length > previousAlertCount.current && alerts.length > 0) {
+      const latestAlert = alerts[0];
+      
+      // Play Sound
+      try {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // futuristic beep
+        audio.volume = 0.5;
+        audio.play().catch(e => console.log('Audio Autoplay blocked by browser. User must interact first.'));
+      } catch (e) {}
+      
+      // Voice Announce
+      if(latestAlert.severity === 'CRITICAL' || latestAlert.severity === 'WARNING') {
+          if ('speechSynthesis' in window) {
+              const utterance = new SpeechSynthesisUtterance(`AI System Warning: ${latestAlert.severity} threat detected. ${latestAlert.message.split('.')[0]}`);
+              utterance.pitch = 0.9;
+              utterance.rate = 1.05;
+              utterance.volume = 0.8;
+              window.speechSynthesis.speak(utterance);
+          }
+      }
+    }
+    previousAlertCount.current = alerts.length;
+  }, [alerts]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -190,15 +219,18 @@ export default function App() {
             </button>
             <button
               onClick={() => setIsReportOpen(true)}
-              className="px-5 py-2 bg-red-500/10 text-red-500 text-sm rounded-full border border-red-500/20 font-medium hover:bg-red-500/20 hover:scale-105 transition-all"
+              className="px-5 py-2 bg-red-500 text-white text-sm rounded-full font-bold hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.5)] hover:shadow-[0_0_25px_rgba(239,68,68,0.8)] hover:scale-105 transition-all"
             >
-              Report Disaster
+              Emergency Report
             </button>
           </div>
         </header>
+        
+        {/* LIVE TICKER */}
+        <NewsTicker alerts={alerts} />
 
         {/* ---------- CONTENT ---------- */}
-        <div className="flex-1 overflow-y-auto p-6 relative">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 relative">
 
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
@@ -263,7 +295,11 @@ export default function App() {
           )}
 
           {activeTab === 'map' && (
-            <div className="absolute inset-0 m-6 rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+            <div className="absolute inset-0 m-6 rounded-3xl overflow-hidden border-2 border-indigo-500/30 shadow-[0_0_30px_rgba(79,70,229,0.2)] bg-[#0A0A0B]">
+              <div className="radar-overlay-container">
+                <div className="radar-sweep"></div>
+                <div className="map-scanlines"></div>
+              </div>
               <DisasterMap sensors={sensorData} risks={riskData} />
             </div>
           )}
