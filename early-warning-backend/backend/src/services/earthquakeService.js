@@ -9,9 +9,9 @@ async function getRecentEarthquakes() {
     try {
         // Fetch all earthquakes in the past hour
         const response = await axios.get('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson');
-        
+
         const features = response.data.features || [];
-        
+
         return features.map(f => ({
             id: f.id,
             magnitude: f.properties.mag,

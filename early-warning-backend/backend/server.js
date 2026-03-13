@@ -68,7 +68,7 @@ app.get("/api/locations", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.json([
-        { id: 1, name: 'Mumbai', latitude: 19.0760, longitude: 72.8777 }
+      { id: 1, name: 'Mumbai', latitude: 19.0760, longitude: 72.8777 }
     ]);
   }
 });
@@ -176,7 +176,7 @@ app.post("/api/simulate", async (req, res) => {
   try {
     const aiServiceUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
     const { rainfall, river_level, soil_moisture, wind_speed } = req.body;
-    
+
     // Construct base environmental data
     const envData = {
       location_id: 0,
@@ -191,7 +191,7 @@ app.post("/api/simulate", async (req, res) => {
 
     // Call AI Microservice predict_risk endpoint
     const response = await axios.post(`${aiServiceUrl}/predict_risk`, envData);
-    
+
     res.json(response.data);
   } catch (error) {
     console.error("Simulation Error:", error.message);

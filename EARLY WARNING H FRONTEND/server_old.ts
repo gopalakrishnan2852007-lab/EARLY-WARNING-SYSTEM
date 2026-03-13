@@ -24,7 +24,7 @@ async function startServer() {
 
     try {
       const model = "gemini-3-flash-preview";
-      
+
       const prompt = `Generate a presentation about "${topic}" using a ${template || 'modern'} style. 
       The content should be professional and well-structured.`;
 
@@ -73,9 +73,9 @@ async function startServer() {
       res.json(content);
     } catch (error: any) {
       console.error("Generation error:", error);
-      res.status(500).json({ 
-        error: "Failed to generate presentation content", 
-        details: error.message 
+      res.status(500).json({
+        error: "Failed to generate presentation content",
+        details: error.message
       });
     }
   });

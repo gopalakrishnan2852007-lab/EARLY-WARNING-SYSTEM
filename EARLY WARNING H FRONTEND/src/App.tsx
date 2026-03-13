@@ -99,23 +99,23 @@ export default function App() {
   useEffect(() => {
     if (alerts.length > previousAlertCount.current && alerts.length > 0) {
       const latestAlert = alerts[0];
-      
+
       // Play Sound
       try {
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // futuristic beep
         audio.volume = 0.5;
         audio.play().catch(e => console.log('Audio Autoplay blocked by browser. User must interact first.'));
-      } catch (e) {}
-      
+      } catch (e) { }
+
       // Voice Announce
-      if(latestAlert.severity === 'CRITICAL' || latestAlert.severity === 'WARNING') {
-          if ('speechSynthesis' in window) {
-              const utterance = new SpeechSynthesisUtterance(`AI System Warning: ${latestAlert.severity} threat detected. ${latestAlert.message.split('.')[0]}`);
-              utterance.pitch = 0.9;
-              utterance.rate = 1.05;
-              utterance.volume = 0.8;
-              window.speechSynthesis.speak(utterance);
-          }
+      if (latestAlert.severity === 'CRITICAL' || latestAlert.severity === 'WARNING') {
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(`AI System Warning: ${latestAlert.severity} threat detected. ${latestAlert.message.split('.')[0]}`);
+          utterance.pitch = 0.9;
+          utterance.rate = 1.05;
+          utterance.volume = 0.8;
+          window.speechSynthesis.speak(utterance);
+        }
       }
     }
     previousAlertCount.current = alerts.length;
@@ -225,7 +225,7 @@ export default function App() {
             </button>
           </div>
         </header>
-        
+
         {/* LIVE TICKER */}
         <NewsTicker alerts={alerts} />
 

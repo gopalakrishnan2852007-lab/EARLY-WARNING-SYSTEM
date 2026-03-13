@@ -14,11 +14,11 @@ redisClient.on('error', (err) => console.log('❌ Redis Client Error', err));
 redisClient.on('connect', () => console.log('🟢 Connected to Redis'));
 
 const connectRedis = async () => {
-    try {
-        await redisClient.connect();
-    } catch (err) {
-        console.error('Failed to connect to Redis', err);
-    }
+  try {
+    await redisClient.connect();
+  } catch (err) {
+    console.error('Failed to connect to Redis', err);
+  }
 }
 
 module.exports = { redisClient, connectRedis };

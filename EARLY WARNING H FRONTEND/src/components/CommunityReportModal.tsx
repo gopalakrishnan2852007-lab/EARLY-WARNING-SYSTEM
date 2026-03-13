@@ -27,7 +27,7 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('submitting');
-    
+
     try {
       await fetch('https://early-warning-system-fh1y.onrender.com/api/reports', {
         method: 'POST',
@@ -52,10 +52,10 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
   return (
     <div className="fixed inset-0 z-[200] overflow-y-auto custom-scrollbar p-4 md:p-8 flex justify-center items-start">
       <div className="fixed inset-0 bg-[#0A0A0B]/80 backdrop-blur-sm" onClick={onClose} />
-      
+
       <AnimatePresence>
         {isOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
@@ -95,8 +95,8 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
                         type="button"
                         onClick={() => setReportType(type.toLowerCase())}
                         className={`py-2 px-3 rounded-lg text-sm font-medium border transition-colors
-                          ${reportType === type.toLowerCase() 
-                            ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' 
+                          ${reportType === type.toLowerCase()
+                            ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400'
                             : 'bg-[#1E293B] border-white/5 text-slate-400 hover:border-white/20'}`}
                       >
                         {type}
@@ -108,18 +108,18 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Location</label>
                   <div className="flex relative">
-                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                     <input 
-                       required
-                       type="text" 
-                       value={location}
-                       onChange={(e) => setLocation(e.target.value)}
-                       placeholder="Enter street or landmark..." 
-                       className="w-full bg-[#1E293B] border border-white/5 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
-                     />
-                     <button type="button" onClick={handleGPS} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium bg-[#0F172A] px-2 py-1 rounded text-indigo-400">
-                       Use GPS
-                     </button>
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                      required
+                      type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="Enter street or landmark..."
+                      className="w-full bg-[#1E293B] border border-white/5 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                    />
+                    <button type="button" onClick={handleGPS} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium bg-[#0F172A] px-2 py-1 rounded text-indigo-400">
+                      Use GPS
+                    </button>
                   </div>
                 </div>
 
@@ -134,25 +134,25 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
 
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Additional Details</label>
-                  <textarea 
+                  <textarea
                     rows={3}
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
-                    placeholder="Describe the situation..." 
+                    placeholder="Describe the situation..."
                     className="w-full bg-[#1E293B] border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors resize-none"
                   />
                 </div>
 
                 <div className="pt-4 flex gap-4">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={onClose}
                     className="flex-1 py-3 px-4 rounded-xl font-medium text-slate-300 bg-transparent border border-white/10 hover:bg-white/5 transition-colors"
                   >
                     Cancel
                   </button>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={status === 'submitting'}
                     className="flex-[2] py-3 px-4 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors shadow-[0_0_15px_rgba(79,70,229,0.4)] disabled:opacity-50 flex justify-center items-center"
                   >

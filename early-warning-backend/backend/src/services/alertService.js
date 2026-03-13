@@ -30,10 +30,10 @@ const processRiskPrediction = async (locationId, predictionData) => {
                 `, [
                     locationId,
                     predictionData.risk_score,
-                    predictionData.flood_probability, 
+                    predictionData.flood_probability,
                     predictionData.landslide_probability,
                     predictionData.storm_surge_probability,
-                    predictionData.risk_level, 
+                    predictionData.risk_level,
                     'Next 24 Hours'
                 ]);
                 prediction = rows[0];
@@ -43,15 +43,15 @@ const processRiskPrediction = async (locationId, predictionData) => {
 
         // 2. Generate Alerts if risk is high or critical
         if (prediction.risk_level === 'high' || prediction.risk_level === 'critical') {
-            
+
             // Determine alert type based on the highest probability
             let alertType = 'Severe Weather Warning';
             const maxProb = Math.max(prediction.flood_probability, prediction.landslide_probability, prediction.storm_surge_probability);
-            
+
             if (maxProb === prediction.flood_probability) alertType = 'Flood Warning';
             else if (maxProb === prediction.landslide_probability) alertType = 'Landslide Warning';
             else if (maxProb === prediction.storm_surge_probability) alertType = 'Storm Surge Warning';
-            
+
             const message = `${prediction.risk_level.toUpperCase()} ${alertType} predicted. Probability: ${(maxProb * 100).toFixed(0)}%. Immediate action may be required. AI Confidence: ${predictionData.confidence}`;
 
             let newAlert = {
@@ -78,10 +78,10 @@ const processRiskPrediction = async (locationId, predictionData) => {
                     ]);
                     newAlert = alertResult.rows[0];
                 } catch (e) {
-                     console.log('DB error storing alert, using memory alert...')
+                    console.log('DB error storing alert, using memory alert...')
                 }
             }
-            
+
             // 3. Emit the WebSocket alert
             emitAlert(newAlert);
         }

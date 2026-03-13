@@ -16,13 +16,13 @@ export default function AIChatAssistant() {
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;
-    
+
     // Add user message
     const userMsg = { id: Date.now(), type: 'user', text: inputValue };
     setMessages(prev => [...prev, userMsg]);
     setInputValue('');
     setIsTyping(true);
-    
+
     try {
       const response = await fetch('https://early-warning-system-fh1y.onrender.com/api/chat', {
         method: 'POST',
@@ -30,10 +30,10 @@ export default function AIChatAssistant() {
         body: JSON.stringify({ message: inputValue, context: 'Currently on the disaster dashboard evaluating risks.' })
       });
       const data = await response.json();
-      
-      const aiMsg = { 
-        id: Date.now() + 1, 
-        type: 'bot', 
+
+      const aiMsg = {
+        id: Date.now() + 1,
+        type: 'bot',
         text: data.reply || "I am currently unable to reach the server. Please check my connection."
       };
       setMessages(prev => [...prev, aiMsg]);
@@ -46,7 +46,7 @@ export default function AIChatAssistant() {
 
   return (
     <>
-      <button 
+      <button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(79,70,229,0.5)] hover:scale-105 transition-transform z-50 group"
       >
@@ -55,7 +55,7 @@ export default function AIChatAssistant() {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -72,7 +72,7 @@ export default function AIChatAssistant() {
                   <p className="text-[10px] text-indigo-400">Emergency Support System</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setIsOpen(false)}
                 className="p-1.5 rounded-full hover:bg-white/10 text-slate-400 transition-colors"
               >
@@ -97,15 +97,15 @@ export default function AIChatAssistant() {
             {/* Input Area */}
             <div className="p-4 border-t border-white/10 bg-[#0F172A] rounded-b-2xl">
               <div className="relative">
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="Ask about risks, shelters..." 
+                  placeholder="Ask about risks, shelters..."
                   className="w-full bg-[#1E293B] border border-white/10 rounded-full pl-4 pr-12 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
                 />
-                <button 
+                <button
                   onClick={handleSend}
                   className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white hover:bg-indigo-600 transition-colors"
                 >

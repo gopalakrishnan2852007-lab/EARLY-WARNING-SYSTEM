@@ -83,7 +83,7 @@ const initDb = async () => {
             );
         `);
         console.log('✅ CommunityReports table created');
-        
+
         console.log('🎉 All tables initialized successfully.');
         process.exit(0);
 

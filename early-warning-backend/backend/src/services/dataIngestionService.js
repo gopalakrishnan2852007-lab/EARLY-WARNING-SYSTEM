@@ -10,17 +10,17 @@ const io = require('../socket'); // We will create this
 const fetchEnvironmentalData = async () => {
     try {
         console.log('🔄 Fetching real-time environmental data...');
-        
+
         let dbLocations = [];
         try {
-          const res = await pool.query('SELECT * FROM Locations');
-          dbLocations = res.rows;
+            const res = await pool.query('SELECT * FROM Locations');
+            dbLocations = res.rows;
         } catch (e) {
-          console.log('Database error, using fallback location for stream...');
+            console.log('Database error, using fallback location for stream...');
         }
-        
+
         const locations = dbLocations.length > 0 ? dbLocations : [
-           { id: 1, name: 'Mumbai', latitude: 19.0760, longitude: 72.8777 }
+            { id: 1, name: 'Mumbai', latitude: 19.0760, longitude: 72.8777 }
         ];
 
         for (const loc of locations) {
@@ -29,11 +29,11 @@ const fetchEnvironmentalData = async () => {
             let flood = {};
             try {
                 weather = await getWeatherData(loc.latitude, loc.longitude);
-            } catch(e) {}
-            
+            } catch (e) { }
+
             try {
                 flood = await getFloodData(loc.latitude, loc.longitude);
-            } catch(e) {}
+            } catch (e) { }
 
             const mockData = {
                 location_id: loc.id,
@@ -48,23 +48,23 @@ const fetchEnvironmentalData = async () => {
 
             // 3. Store in database
             try {
-               if (pool) {
-                   await pool.query(`
+                if (pool) {
+                    await pool.query(`
                        INSERT INTO EnvironmentalData 
                        (location_id, rainfall, temperature, humidity, wind_speed, soil_moisture, river_level, vegetation_dryness)
                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                    `, [
-                       mockData.location_id, mockData.rainfall, mockData.temperature, 
-                       mockData.humidity, mockData.wind_speed, mockData.soil_moisture, 
-                       mockData.river_level, mockData.vegetation_dryness
-                   ]);
-               }
+                        mockData.location_id, mockData.rainfall, mockData.temperature,
+                        mockData.humidity, mockData.wind_speed, mockData.soil_moisture,
+                        mockData.river_level, mockData.vegetation_dryness
+                    ]);
+                }
             } catch (e) {
-               console.log('Could not save to DB, skipping insert');
+                console.log('Could not save to DB, skipping insert');
             }
 
             console.log(`✅ Saved new environmental data for location: ${loc.name}`);
-            
+
             // Emit Virtual Sensor Update
             if (io.getIO()) {
                 io.getIO().emit('sensorUpdate', {
@@ -77,26 +77,26 @@ const fetchEnvironmentalData = async () => {
 
             // 4. Call AI Prediction service
             try {
-                if(process.env.AI_SERVICE_URL) {
-                   const aiResponse = await axios.post(`${process.env.AI_SERVICE_URL}/predict_risk`, mockData);
-                   const predictionData = aiResponse.data;
-                   // 5. Save prediction and evaluate for alerts
-                   await processRiskPrediction(loc.id, predictionData);
+                if (process.env.AI_SERVICE_URL) {
+                    const aiResponse = await axios.post(`${process.env.AI_SERVICE_URL}/predict_risk`, mockData);
+                    const predictionData = aiResponse.data;
+                    // 5. Save prediction and evaluate for alerts
+                    await processRiskPrediction(loc.id, predictionData);
 
-                   // Emit Real-time Risk Update
-                   if (io.getIO()) {
-                       io.getIO().emit('riskUpdate', {
-                           location_id: loc.id,
-                           prediction: predictionData,
-                           timestamp: new Date()
-                       });
-                   }
+                    // Emit Real-time Risk Update
+                    if (io.getIO()) {
+                        io.getIO().emit('riskUpdate', {
+                            location_id: loc.id,
+                            prediction: predictionData,
+                            timestamp: new Date()
+                        });
+                    }
                 }
             } catch (aiError) {
                 console.error(`❌ Failed to get AI prediction for ${loc.name}:`, aiError.message);
             }
         }
-        
+
     } catch (error) {
         console.error('❌ Error fetching environmental data:', error.message);
     }
