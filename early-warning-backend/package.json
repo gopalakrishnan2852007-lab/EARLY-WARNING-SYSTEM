@@ -1,0 +1,22 @@
+{
+  "name": "ai-ppt-maker",
+  "version": "1.0.0",
+  "description": "AI PPT Maker Backend",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev:backend": "node server.js",
+    "dev:all": "concurrently \"cd backend && node server.js\" \"cd slideforge-ai && npm run dev\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "pptxgenjs": "^4.0.1"
+  }
+}
