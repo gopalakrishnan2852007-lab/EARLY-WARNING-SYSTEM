@@ -7,7 +7,7 @@ import RiskTimelineChart from "./components/RiskTimelineChart";
 import AIChatAssistant from "./components/AIChatAssistant";
 import CommunityReportModal from "./components/CommunityReportModal";
 
-const API = "http://localhost:10000"; // Use localhost for dev, or render URL
+const API = "https://early-warning-system-fh1y.onrender.com"; // Production Render backend
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -272,30 +272,28 @@ export default function App() {
             <div className="h-full bg-white/5 border border-white/5 rounded-3xl p-6 shadow-xl backdrop-blur-sm flex flex-col">
               <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-4 shrink-0">
                 <h2 className="text-xl font-bold flex items-center gap-3">
-                  <AlertTriangle className="w-6 h-6 text-red-400" /> 
+                  <AlertTriangle className="w-6 h-6 text-red-400" />
                   Global Alert Console
                 </h2>
                 <div className="text-sm text-slate-400">Total Active: {alerts.length}</div>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">
                 {alerts.length > 0 ? (
                   alerts.map((alert, index) => (
-                    <div 
+                    <div
                       key={alert.id || index}
-                      className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center gap-4 ${
-                        alert.severity === 'CRITICAL' ? 'bg-red-500/10 border-red-500/30' : 
-                        alert.severity === 'WARNING' ? 'bg-orange-500/10 border-orange-500/30' : 
-                        'bg-blue-500/10 border-blue-500/30'
-                      }`}
+                      className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center gap-4 ${alert.severity === 'CRITICAL' ? 'bg-red-500/10 border-red-500/30' :
+                        alert.severity === 'WARNING' ? 'bg-orange-500/10 border-orange-500/30' :
+                          'bg-blue-500/10 border-blue-500/30'
+                        }`}
                     >
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
-                            alert.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-400' : 
-                            alert.severity === 'WARNING' ? 'bg-orange-500/20 text-orange-400' : 
-                            'bg-blue-500/20 text-blue-400'
-                          }`}>
+                          <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${alert.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-400' :
+                            alert.severity === 'WARNING' ? 'bg-orange-500/20 text-orange-400' :
+                              'bg-blue-500/20 text-blue-400'
+                            }`}>
                             {alert.severity}
                           </span>
                           <span className="text-sm text-slate-400 flex items-center gap-1">
@@ -323,7 +321,7 @@ export default function App() {
           {activeTab === 'simulation' && (
             <div className="h-full bg-white/5 border border-white/5 rounded-3xl p-6 shadow-xl backdrop-blur-sm overflow-y-auto custom-scrollbar">
               <h2 className="text-xl font-bold flex items-center gap-3 mb-6">
-                <Layers className="w-6 h-6 text-indigo-400" /> 
+                <Layers className="w-6 h-6 text-indigo-400" />
                 AI Threat Simulation Engine
               </h2>
               <div className="grid md:grid-cols-2 gap-8">
@@ -331,7 +329,7 @@ export default function App() {
                   <p className="text-slate-400 text-sm">
                     Adjust environmental parameters below to model potential disaster scenarios. The AI Engine will calculate risk probabilities in real-time.
                   </p>
-                  
+
                   <div className="space-y-4 bg-white/5 p-5 rounded-2xl border border-white/5">
                     <div>
                       <label className="flex justify-between text-sm mb-2">
@@ -366,34 +364,31 @@ export default function App() {
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="bg-[#0A0A0B] rounded-2xl border border-white/5 p-6 flex items-center justify-center relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-purple-500/10" />
                   <div className="relative text-center w-full">
                     {simResult ? (
                       <>
-                        <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center mx-auto mb-4 ${
-                          simResult.risk_level === 'critical' ? 'border-red-500/30' :
+                        <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center mx-auto mb-4 ${simResult.risk_level === 'critical' ? 'border-red-500/30' :
                           simResult.risk_level === 'high' ? 'border-orange-500/30' :
-                          simResult.risk_level === 'moderate' ? 'border-amber-500/30' : 'border-emerald-500/30'
-                        }`}>
-                          <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg ${
-                            simResult.risk_level === 'critical' ? 'bg-red-500' :
-                            simResult.risk_level === 'high' ? 'bg-orange-500' :
-                            simResult.risk_level === 'moderate' ? 'bg-amber-500' : 'bg-emerald-500'
+                            simResult.risk_level === 'moderate' ? 'border-amber-500/30' : 'border-emerald-500/30'
                           }`}>
+                          <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg ${simResult.risk_level === 'critical' ? 'bg-red-500' :
+                            simResult.risk_level === 'high' ? 'bg-orange-500' :
+                              simResult.risk_level === 'moderate' ? 'bg-amber-500' : 'bg-emerald-500'
+                            }`}>
                             {simResult.risk_level === 'safe' ? <ShieldCheck className="w-8 h-8 text-white" /> : <AlertTriangle className="w-8 h-8 text-white" />}
                           </div>
                         </div>
                         <h3 className="text-2xl font-black text-white mb-2 tracking-wide uppercase">{simResult.risk_level} Risk</h3>
-                        <p className={`font-medium mb-6 ${
-                          simResult.risk_level === 'critical' ? 'text-red-400' :
+                        <p className={`font-medium mb-6 ${simResult.risk_level === 'critical' ? 'text-red-400' :
                           simResult.risk_level === 'high' ? 'text-orange-400' :
-                          simResult.risk_level === 'moderate' ? 'text-amber-400' : 'text-emerald-400'
-                        }`}>
-                           Max Probability: {(simResult.risk_score * 100).toFixed(0)}%
+                            simResult.risk_level === 'moderate' ? 'text-amber-400' : 'text-emerald-400'
+                          }`}>
+                          Max Probability: {(simResult.risk_score * 100).toFixed(0)}%
                         </p>
-                        
+
                         <div className="grid grid-cols-3 gap-3 text-left">
                           <div className="bg-white/5 p-3 rounded-xl border border-white/5">
                             <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 text-center">Flood</div>

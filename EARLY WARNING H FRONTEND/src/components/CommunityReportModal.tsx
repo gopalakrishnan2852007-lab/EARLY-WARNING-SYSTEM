@@ -29,7 +29,7 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
     setStatus('submitting');
     
     try {
-      await fetch('http://localhost:10000/api/reports', {
+      await fetch('https://early-warning-system-fh1y.onrender.com/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: reportType, location, details })
