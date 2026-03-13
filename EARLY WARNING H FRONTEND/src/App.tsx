@@ -51,11 +51,43 @@ export default function App() {
     }
   };
 
-  // Socket Connection
+  // Socket Connection & Initial Data Fetch
   useEffect(() => {
+    // 1. Fetch initial data so dashboard isn't empty while waiting for first socket event
+    const fetchInitialData = async () => {
+      try {
+        const [dataRes, alertsRes] = await Promise.all([
+          fetch(`${API}/api/latest-data`),
+          fetch(`${API}/api/alerts`)
+        ]);
+        
+        if (dataRes.ok) {
+          const latestData = await dataRes.json();
+          // Map array to object dictionary keyed by location_id
+          const newSensors: Record<string, any> = {};
+          latestData.forEach((item: any) => {
+             newSensors[item.location_id] = item;
+          });
+          setSensorData(prev => ({ ...prev, ...newSensors }));
+        }
+
+        if (alertsRes.ok) {
+          const latestAlerts = await alertsRes.json();
+          setAlerts(latestAlerts);
+        }
+      } catch (e) {
+        console.error("Failed to fetch initial data", e);
+      }
+    };
+
+    fetchInitialData();
+
+    // 2. Setup Sockets for realtime streaming
     const socket = io(API);
 
-    socket.on('connection_established', (data) => console.log(data.message));
+    socket.on('connection_established', (msg) => {
+      console.log(msg);
+    });
 
     socket.on('sensorUpdate', (payload) => {
       setSensorData(prev => ({
