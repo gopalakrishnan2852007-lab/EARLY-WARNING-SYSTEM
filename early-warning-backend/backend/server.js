@@ -56,8 +56,12 @@ message: "AI Disaster Early Warning System Engine Running"
 app.get("/api/locations", async (req, res) => {
 try {
 if (!pool) throw new Error("Database not connected");
+
+```
 const { rows } = await pool.query("SELECT * FROM Locations");
 res.json(rows);
+```
+
 } catch (err) {
 console.error(err);
 res.status(500).json({ error: err.message });
@@ -70,12 +74,13 @@ try {
 if (!pool) throw new Error("Database not connected");
 
 ```
-const { rows } = await pool.query(`
+const query = `
   SELECT DISTINCT ON (location_id) *
   FROM EnvironmentalData
   ORDER BY location_id, timestamp DESC
-`);
+`;
 
+const { rows } = await pool.query(query);
 res.json(rows);
 ```
 
@@ -106,6 +111,7 @@ res.status(500).json({ error: err.message });
 
 // WebSocket connection
 io.on("connection", (socket) => {
+
 console.log("Client connected:", socket.id);
 
 socket.emit("connection_established", {
@@ -115,33 +121,39 @@ message: "Connected to Disaster Warning Server"
 socket.on("disconnect", () => {
 console.log("Client disconnected:", socket.id);
 });
+
 });
 
 // Start server
 async function startServer() {
+
 try {
 
 ```
-// Redis
+// Redis connection
 if (connectRedis && process.env.REDIS_URL) {
+
   try {
     await connectRedis();
     console.log("Redis connected");
   } catch (err) {
     console.log("Redis connection failed");
   }
+
 } else {
   console.log("Redis skipped");
 }
 
 // Cron jobs
 if (startCronJobs) {
+
   try {
     startCronJobs();
     console.log("Cron jobs started");
   } catch (err) {
     console.log("Cron job start failed");
   }
+
 }
 
 global.io = io;
@@ -156,6 +168,7 @@ server.listen(PORT, () => {
 } catch (error) {
 console.error("Server failed to start:", error);
 }
+
 }
 
 startServer();
