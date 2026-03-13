@@ -22,6 +22,7 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(false);
 
   // Realtime Data State
+  const [locations, setLocations] = useState({});
   const [sensorData, setSensorData] = useState({});
   const [riskData, setRiskData] = useState({});
   const [timelineData, setTimelineData] = useState([]);
@@ -63,9 +64,10 @@ export default function App() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [dataRes, alertsRes] = await Promise.all([
+        const [dataRes, alertsRes, locRes] = await Promise.all([
           fetch(`${API}/api/latest-data`).catch(() => null),
-          fetch(`${API}/api/alerts`).catch(() => null)
+          fetch(`${API}/api/alerts`).catch(() => null),
+          fetch(`${API}/api/locations`).catch(() => null)
         ]);
 
         if (dataRes && dataRes.ok) {
@@ -78,6 +80,13 @@ export default function App() {
         if (alertsRes && alertsRes.ok) {
           const latestAlerts = await alertsRes.json();
           setAlerts(latestAlerts);
+        }
+
+        if (locRes && locRes.ok) {
+          const locsData = await locRes.json();
+          const newLocs: Record<string, any> = {};
+          locsData.forEach((item: any) => { newLocs[item.id] = item; });
+          setLocations(newLocs);
         }
       } catch (e) { console.error("Failed to fetch initial data", e); }
     };
@@ -314,7 +323,7 @@ export default function App() {
 
           {activeTab === 'map' && (
             <div className="absolute inset-0 m-6 rounded-3xl overflow-hidden border-2 border-indigo-500/30 shadow-[0_0_30px_rgba(79,70,229,0.2)] bg-[#0A0A0B]">
-              <DisasterMap sensors={sensorData} risks={riskData} />
+              <DisasterMap sensors={sensorData} risks={riskData} locations={locations} />
             </div>
           )}
 

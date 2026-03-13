@@ -11,10 +11,10 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Fallback initial location (can center dynamically later)
-const DEFAULT_CENTER = [28.6139, 77.2090];
+// Focus map initially on India bounds
+const DEFAULT_CENTER = [20.5937, 78.9629];
 
-export default function DisasterMap({ sensors, risks }: { sensors: any, risks: any }) {
+export default function DisasterMap({ sensors, risks, locations = {} }: { sensors: any, risks: any, locations?: any }) {
 
   // Convert standard Object Dictionary down to map-friendly array
   const mapNodes = useMemo(() => {
@@ -29,6 +29,7 @@ export default function DisasterMap({ sensors, risks }: { sensors: any, risks: a
     return keys.map(locId => {
       const s = sensors[locId];
       const r = risks[locId] || {};
+      const loc = locations[locId];
 
       const level = r.risk_level || 'safe';
 
@@ -43,24 +44,28 @@ export default function DisasterMap({ sensors, risks }: { sensors: any, risks: a
       else if (r.landslide_probability > r.storm_surge_probability) type = 'landslide';
       else if (r.storm_surge_probability) type = 'storm_surge';
 
+      const lat = loc?.latitude || (20.5937 + (Math.random() * 2 - 1));
+      const lng = loc?.longitude || (78.9629 + (Math.random() * 2 - 1));
+      const locName = loc?.name ? `Sensor Node: ${loc.name}` : `Sensor Node ${locId}`;
+
       return {
         id: locId,
-        lat: 28.6139 + (Math.random() * 0.1 - 0.05), // Fake offset if no lat/lon in payload, real systems would stream lat/lon!
-        lng: 77.2090 + (Math.random() * 0.1 - 0.05),
+        lat,
+        lng,
         type,
         color,
-        label: `Sensor Node ${locId}`,
+        label: locName,
         data: s,
         risk: r
       };
     });
-  }, [sensors, risks]);
+  }, [sensors, risks, locations]);
 
   return (
     <div className="w-full h-full relative z-10 bg-[#0A0A0B]">
       <MapContainer
         center={DEFAULT_CENTER as any}
-        zoom={11}
+        zoom={5}
         style={{ height: '100%', width: '100%', background: '#0F172A' }}
         zoomControl={false}
       >
