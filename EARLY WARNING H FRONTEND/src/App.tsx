@@ -18,8 +18,9 @@ const API = "https://early-warning-system-fh1y.onrender.com";
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-  const [alerts, setAlerts] = useState([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   // Realtime Data State
   const [locations, setLocations] = useState({});
@@ -189,9 +190,9 @@ export default function App() {
   ];
 
   return (
-    <div className="flex min-h-screen bg-[#0A0A0B] text-slate-200 font-sans overflow-y-auto">
-      {/* ---------- SIDEBAR ---------- */}
-      <aside className="w-20 lg:w-64 border-r border-white/5 bg-[#0D0D0F] flex flex-col justify-between shrink-0">
+    <div className="flex flex-col md:flex-row h-screen h-[100dvh] bg-[#0A0A0B] text-slate-200 font-sans overflow-hidden">
+      {/* ---------- SIDEBAR (DESKTOP) ---------- */}
+      <aside className="hidden md:flex w-20 lg:w-64 border-r border-white/5 bg-[#0D0D0F] flex-col justify-between shrink-0 relative z-20">
         <div>
           <div className="h-20 flex items-center justify-center lg:justify-start lg:px-6 border-b border-white/5">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
@@ -225,12 +226,35 @@ export default function App() {
         </div>
       </aside>
 
+      {/* ---------- MOBILE BOTTOM NAV ---------- */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#0A0A0B]/95 backdrop-blur-xl border-t border-white/10 z-[100] flex justify-around items-center px-2 pb-safe">
+        {[
+          { id: "dashboard", icon: LayoutGrid, label: "Home" },
+          { id: "map", icon: MapIcon, label: "Map" },
+          { id: "alerts", icon: AlertTriangle, label: "Alerts" },
+          { id: "simulation", icon: Layers, label: "Simulate" },
+        ].map(item => (
+          <button
+            key={item.id}
+            onClick={() => setActiveTab(item.id)}
+            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${activeTab === item.id ? "text-indigo-400" : "text-slate-500 hover:text-slate-300"
+              }`}
+          >
+            <item.icon className="w-5 h-5" />
+            <span className="text-[9px] font-medium tracking-wider">{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
       {/* ---------- MAIN ---------- */}
-      <main className="flex-1 flex flex-col overflow-hidden relative">
+      <main className="flex-1 flex flex-col overflow-hidden relative pb-16 md:pb-0">
         {/* HEADER */}
-        <header className="h-20 border-b border-white/5 px-6 flex items-center justify-between z-10 bg-[#0A0A0B]/80 backdrop-blur-md shrink-0">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 hidden md:block capitalize">
+        <header className="h-16 md:h-20 border-b border-white/5 px-4 md:px-6 flex items-center justify-between z-10 bg-[#0A0A0B]/80 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-3 md:gap-6">
+            <div className="md:hidden w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
+              <Zap className="text-white w-4 h-4" />
+            </div>
+            <h1 className="text-lg md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 hidden sm:block capitalize">
               {activeTab.replace('-', ' ')}
             </h1>
             <div className="flex items-center gap-2 text-slate-400 text-sm bg-white/5 border border-white/5 px-4 py-2 rounded-full shadow-inner">
@@ -251,10 +275,10 @@ export default function App() {
               )}
             </button>
             <button
-              onClick={() => alert("Emergency report module loading...")}
-              className="px-5 py-2 bg-red-500 text-white text-sm rounded-full font-bold hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.5)] hover:scale-105 transition-all"
+              onClick={() => setIsReportOpen(true)}
+              className="px-3 py-1.5 md:px-5 md:py-2 bg-red-500 text-white text-xs md:text-sm rounded-full font-bold hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.5)] hover:scale-105 transition-all w-max whitespace-nowrap"
             >
-              Emergency Report
+              Report Risk
             </button>
           </div>
         </header>
@@ -263,7 +287,7 @@ export default function App() {
         <NewsTicker alerts={alerts} />
 
         {/* ---------- CONTENT ---------- */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 relative">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 relative custom-scrollbar">
 
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
@@ -454,7 +478,7 @@ export default function App() {
       </main>
 
       <AIChatAssistant />
-      <CommunityReportModal isOpen={false} onClose={() => { }} />
+      <CommunityReportModal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} />
     </div>
   );
 }

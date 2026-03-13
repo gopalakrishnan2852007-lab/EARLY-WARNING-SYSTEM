@@ -20,7 +20,11 @@ const fetchEnvironmentalData = async () => {
         }
 
         const locations = dbLocations.length > 0 ? dbLocations : [
-            { id: 1, name: 'Mumbai', latitude: 19.0760, longitude: 72.8777 }
+            { id: 1, name: 'Chennai', latitude: 13.0827, longitude: 80.2707 },
+            { id: 2, name: 'Coimbatore', latitude: 11.0168, longitude: 76.9558 },
+            { id: 3, name: 'Madurai', latitude: 9.9252, longitude: 78.1198 },
+            { id: 4, name: 'Tiruchirappalli', latitude: 10.7905, longitude: 78.7047 },
+            { id: 5, name: 'Salem', latitude: 11.6643, longitude: 78.1460 }
         ];
 
         for (const loc of locations) {
