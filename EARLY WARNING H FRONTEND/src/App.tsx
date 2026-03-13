@@ -60,13 +60,13 @@ export default function App() {
           fetch(`${API}/api/latest-data`),
           fetch(`${API}/api/alerts`)
         ]);
-        
+
         if (dataRes.ok) {
           const latestData = await dataRes.json();
           // Map array to object dictionary keyed by location_id
           const newSensors: Record<string, any> = {};
           latestData.forEach((item: any) => {
-             newSensors[item.location_id] = item;
+            newSensors[item.location_id] = item;
           });
           setSensorData(prev => ({ ...prev, ...newSensors }));
         }
