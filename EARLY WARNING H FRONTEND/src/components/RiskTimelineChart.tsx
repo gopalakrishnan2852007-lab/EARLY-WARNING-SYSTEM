@@ -1,43 +1,53 @@
 import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const data = [
-  { time: '00:00', flood: 20, fire: 10 },
-  { time: '04:00', flood: 35, fire: 15 },
-  { time: '08:00', flood: 45, fire: 30 },
-  { time: '12:00', flood: 55, fire: 65 },
-  { time: '16:00', flood: 85, fire: 80 },
-  { time: '20:00', flood: 70, fire: 40 },
-  { time: '24:00', flood: 50, fire: 20 },
-];
+interface TimelineData {
+  time: string;
+  flood?: number;
+  landslide?: number;
+  surge?: number;
+}
 
-export default function RiskTimelineChart() {
+export default function RiskTimelineChart({ data }: { data: TimelineData[] }) {
+  
+  // Use dummy data if no real data is streamed yet
+  const chartData = data && data.length > 0 ? data : [
+    { time: 'T-00:00', flood: 0, landslide: 0, surge: 0 },
+    { time: 'T-05:00', flood: 0, landslide: 0, surge: 0 },
+  ];
+
   return (
-    <div className="w-full h-64 mt-4">
+    <div className="w-full h-72">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
-          data={data}
+          data={chartData}
           margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
         >
           <defs>
             <linearGradient id="colorFlood" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.5}/>
               <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
             </linearGradient>
-            <linearGradient id="colorFire" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
-              <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+            <linearGradient id="colorLandslide" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.5}/>
+              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+            </linearGradient>
+            <linearGradient id="colorSurge" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.5}/>
+              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.5} vertical={false} />
-          <XAxis dataKey="time" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-          <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#ffffff" opacity={0.05} vertical={false} />
+          <XAxis dataKey="time" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+          <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
           <Tooltip 
-            contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
-            itemStyle={{ color: '#f8fafc' }}
+            contentStyle={{ backgroundColor: 'rgba(15, 15, 18, 0.9)', backdropFilter: 'blur(10px)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', color: '#f8fafc', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}
+            itemStyle={{ color: '#f8fafc', fontSize: '13px', fontWeight: 'bold' }}
+            labelStyle={{ color: '#94a3b8', fontSize: '11px', textTransform: 'uppercase', marginBottom: '8px' }}
           />
-          <Area type="monotone" dataKey="flood" stroke="#3b82f6" fillOpacity={1} fill="url(#colorFlood)" name="Flood Risk %" />
-          <Area type="monotone" dataKey="fire" stroke="#ef4444" fillOpacity={1} fill="url(#colorFire)" name="Fire Risk %" />
+          <Area type="monotone" dataKey="flood" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorFlood)" name="Flood Risk %" />
+          <Area type="monotone" dataKey="landslide" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#colorLandslide)" name="Landslide Risk %" />
+          <Area type="monotone" dataKey="surge" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorSurge)" name="Storm Surge %" />
         </AreaChart>
       </ResponsiveContainer>
     </div>

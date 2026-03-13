@@ -15,15 +15,17 @@ const processRiskPrediction = async (locationId, predictionData) => {
         // 1. Save Risk Prediction
         const { rows } = await pool.query(`
             INSERT INTO RiskPredictions 
-            (location_id, flood_risk_score, fire_risk_score, risk_level, predicted_time_window)
-            VALUES ($1, $2, $3, $4, $5)
+            (location_id, risk_score, flood_probability, landslide_probability, storm_surge_probability, risk_level, predicted_time_window)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
         `, [
-            locationId, 
-            predictionData.flood_risk_score, 
-            predictionData.fire_risk_score, 
+            locationId,
+            predictionData.risk_score,
+            predictionData.flood_probability, 
+            predictionData.landslide_probability,
+            predictionData.storm_surge_probability,
             predictionData.risk_level, 
-            'Next 24 Hours' // Simple default for now
+            'Next 24 Hours'
         ]);
 
         const prediction = rows[0];
@@ -32,11 +34,15 @@ const processRiskPrediction = async (locationId, predictionData) => {
         // 2. Generate Alerts if risk is high or critical
         if (prediction.risk_level === 'high' || prediction.risk_level === 'critical') {
             
-            // Determine alert type based on the higher score
-            const isFlood = prediction.flood_risk_score > prediction.fire_risk_score;
-            const alertType = isFlood ? 'Flood Warning' : 'Wildfire Warning';
+            // Determine alert type based on the highest probability
+            let alertType = 'Severe Weather Warning';
+            const maxProb = Math.max(prediction.flood_probability, prediction.landslide_probability, prediction.storm_surge_probability);
             
-            const message = `${prediction.risk_level.toUpperCase()} ${alertType} predicted for location ID ${locationId} in the next 24 hours. Immediate action may be required.`;
+            if (maxProb === prediction.flood_probability) alertType = 'Flood Warning';
+            else if (maxProb === prediction.landslide_probability) alertType = 'Landslide Warning';
+            else if (maxProb === prediction.storm_surge_probability) alertType = 'Storm Surge Warning';
+            
+            const message = `${prediction.risk_level.toUpperCase()} ${alertType} predicted. Probability: ${(maxProb * 100).toFixed(0)}%. Immediate action may be required. AI Confidence: ${predictionData.confidence}`;
 
             const alertResult = await pool.query(`
                 INSERT INTO Alerts 

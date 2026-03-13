@@ -33,12 +33,8 @@ try {
 }
 
 // Socket.io
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
+const socketManager = require('./src/socket');
+const io = socketManager.init(server);
 
 // Middleware
 app.use(cors());
@@ -106,6 +102,49 @@ app.get("/api/alerts", async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// AI Chat Assistant
+const { handleChatQuery } = require("./src/services/aiAssistantService");
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { message, context } = req.body;
+    if (!message) return res.status(400).json({ error: "Message is required" });
+
+    const responseText = await handleChatQuery(message, context || "System is online. No immediate extreme threats detected.");
+    res.json({ reply: responseText });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Community Reports
+app.post("/api/reports", async (req, res) => {
+  try {
+    const { type, location, details } = req.body;
+
+    // Save to DB
+    if (pool) {
+      await pool.query(
+        "INSERT INTO CommunityReports (user_id, disaster_type, latitude, longitude) VALUES ($1, $2, $3, $4)",
+        ['anonymous', type, 28.6139 + Math.random(), 77.2090 + Math.random()]
+      );
+    }
+
+    // Broadcast to clients
+    if (socketManager.getIO()) {
+      socketManager.getIO().emit('new_alert', {
+        severity: 'WARNING',
+        message: `Community Report: ${type.toUpperCase()} sighted near ${location}. "${details}"`,
+        timestamp: new Date()
+      });
+    }
+
+    res.json({ success: true, message: "Report submitted successfully." });
+  } catch (error) {
+    console.error("Report Error:", error);
     res.status(500).json({ error: error.message });
   }
 });

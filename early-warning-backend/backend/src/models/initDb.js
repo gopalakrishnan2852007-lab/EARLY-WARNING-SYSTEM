@@ -15,9 +15,21 @@ const initDb = async () => {
         console.log('✅ Locations table created');
 
         await pool.query(`
+            CREATE TABLE IF NOT EXISTS Sensors (
+                id SERIAL PRIMARY KEY,
+                location_id INTEGER REFERENCES Locations(id),
+                sensor_type VARCHAR(50) NOT NULL,
+                status VARCHAR(50) DEFAULT 'ACTIVE',
+                installed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        console.log('✅ Sensors table created');
+
+        await pool.query(`
             CREATE TABLE IF NOT EXISTS EnvironmentalData (
                 id SERIAL PRIMARY KEY,
                 location_id INTEGER REFERENCES Locations(id),
+                sensor_id INTEGER REFERENCES Sensors(id),
                 rainfall DECIMAL(10, 2),
                 temperature DECIMAL(5, 2),
                 humidity DECIMAL(5, 2),
@@ -34,8 +46,10 @@ const initDb = async () => {
             CREATE TABLE IF NOT EXISTS RiskPredictions (
                 id SERIAL PRIMARY KEY,
                 location_id INTEGER REFERENCES Locations(id),
-                flood_risk_score DECIMAL(5, 2),
-                fire_risk_score DECIMAL(5, 2),
+                risk_score DECIMAL(5, 2),
+                flood_probability DECIMAL(5, 2),
+                landslide_probability DECIMAL(5, 2),
+                storm_surge_probability DECIMAL(5, 2),
                 risk_level VARCHAR(50),
                 predicted_time_window VARCHAR(100),
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP

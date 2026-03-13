@@ -6,16 +6,30 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
   const [reportType, setReportType] = useState('flood');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [location, setLocation] = useState('');
+  const [details, setDetails] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('submitting');
-    setTimeout(() => {
+    
+    try {
+      await fetch('http://localhost:10000/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: reportType, location, details })
+      });
       setStatus('success');
       setTimeout(() => {
         setStatus('idle');
         onClose();
+        setLocation('');
+        setDetails('');
       }, 2000);
-    }, 1500);
+    } catch (error) {
+      console.error(error);
+      setStatus('idle');
+    }
   };
 
   if (!isOpen) return null;

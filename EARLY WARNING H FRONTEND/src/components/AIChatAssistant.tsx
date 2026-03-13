@@ -12,23 +12,36 @@ export default function AIChatAssistant() {
   const [messages, setMessages] = useState(initialMessages);
   const [inputValue, setInputValue] = useState('');
 
-  const handleSend = () => {
+  const [isTyping, setIsTyping] = useState(false);
+
+  const handleSend = async () => {
     if (!inputValue.trim()) return;
     
     // Add user message
     const userMsg = { id: Date.now(), type: 'user', text: inputValue };
     setMessages(prev => [...prev, userMsg]);
     setInputValue('');
+    setIsTyping(true);
     
-    // Mock AI response
-    setTimeout(() => {
+    try {
+      const response = await fetch('http://localhost:10000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: inputValue, context: 'Currently on the disaster dashboard evaluating risks.' })
+      });
+      const data = await response.json();
+      
       const aiMsg = { 
         id: Date.now() + 1, 
         type: 'bot', 
-        text: 'Analyzing request... Based on current data, the closest safe shelter is Sector 4 High School. Avoid the River Road route as it shows high flood risk.' 
+        text: data.reply || "I am currently unable to reach the server. Please check my connection."
       };
       setMessages(prev => [...prev, aiMsg]);
-    }, 1000);
+    } catch (err) {
+      setMessages(prev => [...prev, { id: Date.now(), type: 'bot', text: 'Error connecting to AI service.' }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
