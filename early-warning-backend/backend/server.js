@@ -4,9 +4,9 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const { Server } = require("socket.io");
 const axios = require("axios");
+const nodemailer = require("nodemailer"); // 🔥 Added Nodemailer
 
 dotenv.config();
-
 const app = express();
 const server = http.createServer(app);
 
@@ -21,6 +21,19 @@ app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 // ==========================================
+// 📧 EMAIL ALERT ENGINE SETUP
+// ==========================================
+// IMPORTANT: You MUST use a "Gmail App Password", not your normal password.
+// Generate one here: https://myaccount.google.com/apppasswords
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER || 'earlywarning34@gmail.com', // Your Gmail
+    pass: process.env.EMAIL_PASS || 'Gopal5417M'   // Put your 16-digit app password here or in .env
+  }
+});
+
+// ==========================================
 // 📍 TAMIL NADU EXACT COORDINATES
 // ==========================================
 const TN_LOCATIONS = [
@@ -31,10 +44,8 @@ const TN_LOCATIONS = [
   { id: 5, name: 'Salem', latitude: 11.6643, longitude: 78.1460 }
 ];
 
-// Memory store for real-time live data
 let liveSensorData = {};
 
-// Initialize with safe baseline data including LAT/LNG
 TN_LOCATIONS.forEach(loc => {
   liveSensorData[loc.id] = {
     location_id: loc.id,
@@ -52,7 +63,7 @@ TN_LOCATIONS.forEach(loc => {
 });
 
 // ==========================================
-// 🌦️ REAL-TIME WEATHER API INTEGRATION (Open-Meteo)
+// 🌦️ REAL-TIME WEATHER API INTEGRATION
 // ==========================================
 async function fetchRealTNWeather() {
   try {
@@ -84,7 +95,7 @@ fetchRealTNWeather();
 setInterval(fetchRealTNWeather, 5 * 60 * 1000);
 
 // ==========================================
-// 🧠 AI RISK PREDICTION ENGINE (Flood & Fire)
+// 🧠 AI RISK PREDICTION ENGINE
 // ==========================================
 function calculateRisks(data) {
   const floodRisk = Math.min(((data.river_level / 8) * 0.6) + ((data.rainfall / 50) * 0.4), 1);
@@ -115,7 +126,7 @@ function calculateRisks(data) {
 // ==========================================
 // 🚀 ROUTES
 // ==========================================
-app.get("/", (req, res) => res.json({ status: "active", location: "Tamil Nadu", message: "AquaGuard AI Engine Running" }));
+app.get("/", (req, res) => res.json({ status: "active", location: "Tamil Nadu" }));
 app.get("/api/locations", (req, res) => res.json(TN_LOCATIONS));
 app.get("/api/latest-data", (req, res) => res.json(Object.values(liveSensorData)));
 
@@ -124,13 +135,13 @@ app.get("/api/alerts", (req, res) => {
   Object.values(liveSensorData).forEach(data => {
     const risks = calculateRisks(data);
     if (risks.fire_probability > 0.6) {
-      alerts.push({ id: Date.now() + 1, severity: 'CRITICAL', message: `🔥 High Fire Risk detected in ${data.name} due to elevated temperatures (${data.temperature}°C) and dry conditions.`, timestamp: new Date() });
+      alerts.push({ id: Date.now() + 1, type: "Fire", severity: 'CRITICAL', message: `🔥 High Fire Risk detected in ${data.name} due to elevated temperatures (${data.temperature}°C) and dry conditions.`, timestamp: new Date() });
     }
     if (risks.flood_probability > 0.6) {
-      alerts.push({ id: Date.now() + 2, severity: 'WARNING', message: `🌊 Elevated Flood Risk in ${data.name} due to rainfall.`, timestamp: new Date() });
+      alerts.push({ id: Date.now() + 2, type: "Flood", severity: 'WARNING', message: `🌊 Elevated Flood Risk in ${data.name} due to high rainfall and river levels.`, timestamp: new Date() });
     }
   });
-  res.json(alerts.length ? alerts : [{ id: 1, severity: 'INFO', message: 'All systems nominal across Tamil Nadu.', timestamp: new Date() }]);
+  res.json(alerts.length ? alerts : []);
 });
 
 app.post("/api/simulate", (req, res) => {
@@ -145,6 +156,39 @@ app.post("/api/simulate", (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: "Simulation Engine Offline." });
+  }
+});
+
+// 🔥 NEW ROUTE: Trigger Email Alert
+app.post("/api/send-email-alert", async (req, res) => {
+  try {
+    const { message, severity, type } = req.body;
+
+    const mailOptions = {
+      from: '"AquaGuard AI Warning System" <earlywarning34@gmail.com>',
+      to: 'earlywarning34@gmail.com', // Sending to yourself as requested
+      subject: `🚨 ${severity} ${type ? type.toUpperCase() : 'DISASTER'} ALERT - ACTION REQUIRED`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid ${severity === 'CRITICAL' ? 'red' : 'orange'}; border-radius: 10px; max-width: 600px; margin: auto;">
+          <h2 style="color: ${severity === 'CRITICAL' ? 'red' : 'orange'}; text-align: center;">⚠️ OFFICIAL AI WARNING NOTIFICATION ⚠️</h2>
+          <hr />
+          <p><strong>Severity Level:</strong> <span style="color: white; background-color: ${severity === 'CRITICAL' ? 'red' : 'orange'}; padding: 3px 8px; border-radius: 4px;">${severity}</span></p>
+          <p><strong>Threat Type:</strong> ${type || 'Multiple Factors'}</p>
+          <p><strong>Time Detected:</strong> ${new Date().toLocaleString()}</p>
+          <div style="background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin-top: 15px;">
+            <p style="margin: 0; font-size: 16px;"><strong>Details:</strong></p>
+            <p style="margin-top: 5px;">${message}</p>
+          </div>
+          <p style="text-align: center; margin-top: 20px; font-size: 12px; color: gray;">Generated automatically by AquaGuard AI Simulation & Monitoring Engine</p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ success: true, message: "Email Alert Broadcasted Successfully!" });
+  } catch (error) {
+    console.error("Email Error:", error);
+    res.status(500).json({ error: "Failed to send email. Check your Gmail App Passwords setup." });
   }
 });
 

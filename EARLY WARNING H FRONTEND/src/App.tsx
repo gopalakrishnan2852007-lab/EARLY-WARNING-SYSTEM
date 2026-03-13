@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import {
   Activity, AlertTriangle, Bell, CloudRain, Droplets, Layers,
   LayoutGrid, Map as MapIcon, Waves, Zap, TrendingUp, ShieldCheck,
-  Radio, Clock, Wifi, Flame, ThermometerSun
+  Radio, Clock, Wifi, Flame, ThermometerSun, Mail, CheckCircle2
 } from "lucide-react";
 
 import DisasterMap from "./components/DisasterMap";
@@ -12,8 +12,8 @@ import AIChatAssistant from "./components/AIChatAssistant";
 import CommunityReportModal from "./components/CommunityReportModal";
 import NewsTicker from "./components/NewsTicker";
 
-// Dynamic API detection
-const API = "https://early-warning-system-fh1y.onrender.com";
+// Important: Change this to your deployed backend URL when you push online.
+const API = "http://localhost:10000";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -21,6 +21,10 @@ export default function App() {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+
+  // Email Notification State
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSuccess, setEmailSuccess] = useState<string | null>(null);
 
   // Realtime Data State
   const [locations, setLocations] = useState({});
@@ -35,8 +39,31 @@ export default function App() {
   const [simRiverLevel, setSimRiverLevel] = useState(2.5);
   const [simSoilMoisture, setSimSoilMoisture] = useState(20);
   const [simWindSpeed, setSimWindSpeed] = useState(45);
-  const [simResult, setSimResult] = useState(null);
+  const [simResult, setSimResult] = useState<any>(null);
   const [isSimulating, setIsSimulating] = useState(false);
+
+  const triggerEmailAlert = async (message: string, severity: string, type: string) => {
+    setEmailSending(true);
+    try {
+      const res = await fetch(`${API}/api/send-email-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, severity, type })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEmailSuccess("Alert sent to earlywarning34@gmail.com!");
+        setTimeout(() => setEmailSuccess(null), 4000);
+      } else {
+        alert("Failed to send email. Check backend logs.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error sending email.");
+    } finally {
+      setEmailSending(false);
+    }
+  };
 
   const runSimulation = async () => {
     setIsSimulating(true);
@@ -73,8 +100,8 @@ export default function App() {
 
         if (dataRes && dataRes.ok) {
           const latestData = await dataRes.json();
-          const newSensors = {};
-          latestData.forEach((item) => { newSensors[item.location_id] = item; });
+          const newSensors: any = {};
+          latestData.forEach((item: any) => { newSensors[item.location_id] = item; });
           setSensorData(newSensors);
         }
 
@@ -102,14 +129,14 @@ export default function App() {
     socket.on('sensorUpdate', (payload) => {
       setSensorData(prev => ({
         ...prev,
-        [payload.location_id]: { ...prev[payload.location_id], ...payload.data }
+        [payload.location_id]: { ...(prev as any)[payload.location_id], ...payload.data }
       }));
     });
 
     socket.on('riskUpdate', (payload) => {
       setRiskData(prev => ({ ...prev, [payload.location_id]: payload.prediction }));
 
-      setTimelineData(prev => {
+      setTimelineData((prev: any) => {
         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const latest = {
           time: timeStr,
@@ -154,12 +181,12 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  const calcAvg = (key, defaultVal) => {
+  const calcAvg = (key: string, defaultVal: string) => {
     const keys = Object.keys(sensorData);
     if (keys.length === 0) return defaultVal;
     let validCount = 0;
     const sum = keys.reduce((acc, k) => {
-      const val = Number(sensorData[k]?.[key]);
+      const val = Number((sensorData as any)[k]?.[key]);
       if (!isNaN(val)) { validCount++; return acc + val; }
       return acc;
     }, 0);
@@ -184,13 +211,22 @@ export default function App() {
     },
     {
       id: "fire", label: "Fire Risk Index",
-      value: (calcAvg("temperature", 0) > 35 && calcAvg("humidity", 100) < 40) ? "HIGH" : "SAFE", unit: "",
+      value: (Number(calcAvg("temperature", "0")) > 35 && Number(calcAvg("humidity", "100")) < 40) ? "HIGH" : "SAFE", unit: "",
       icon: Flame, color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/20"
     }
   ];
 
   return (
     <div className="flex flex-col md:flex-row h-screen h-[100dvh] bg-[#0A0A0B] text-slate-200 font-sans overflow-hidden">
+
+      {/* EMAIL SUCCESS TOAST */}
+      {emailSuccess && (
+        <div className="fixed top-6 right-6 z-[200] bg-emerald-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-10">
+          <CheckCircle2 className="w-5 h-5" />
+          <span className="font-bold">{emailSuccess}</span>
+        </div>
+      )}
+
       {/* ---------- SIDEBAR (DESKTOP) ---------- */}
       <aside className="hidden md:flex w-20 lg:w-64 border-r border-white/5 bg-[#0D0D0F] flex-col justify-between shrink-0 relative z-20">
         <div>
@@ -248,7 +284,6 @@ export default function App() {
 
       {/* ---------- MAIN ---------- */}
       <main className="flex-1 flex flex-col overflow-hidden relative pb-16 md:pb-0">
-        {/* HEADER */}
         <header className="h-16 md:h-20 border-b border-white/5 px-4 md:px-6 flex items-center justify-between z-10 bg-[#0A0A0B]/80 backdrop-blur-md shrink-0">
           <div className="flex items-center gap-3 md:gap-6">
             <div className="md:hidden w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
@@ -283,15 +318,12 @@ export default function App() {
           </div>
         </header>
 
-        {/* LIVE TICKER */}
         <NewsTicker alerts={alerts} />
 
-        {/* ---------- CONTENT ---------- */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 relative custom-scrollbar">
 
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
-              {/* METRICS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {metrics.map(m => (
                   <div key={m.id} className={`bg-white/5 border ${m.border} rounded-3xl p-6 backdrop-blur-sm shadow-xl hover:-translate-y-1 transition-transform cursor-default relative overflow-hidden`}>
@@ -310,7 +342,6 @@ export default function App() {
                 ))}
               </div>
 
-              {/* CHARTS & ALERTS */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-white/5 border border-white/5 rounded-3xl p-6 shadow-xl backdrop-blur-sm">
                   <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -347,7 +378,7 @@ export default function App() {
 
           {activeTab === 'map' && (
             <div className="absolute inset-0 m-6 rounded-3xl overflow-hidden border-2 border-indigo-500/30 shadow-[0_0_30px_rgba(79,70,229,0.2)] bg-[#0A0A0B]">
-              <DisasterMap sensors={sensorData} risks={riskData} locations={locations} />
+              <DisasterMap sensors={sensorData} risks={riskData} />
             </div>
           )}
 
@@ -377,6 +408,16 @@ export default function App() {
                         </div>
                         <p className="text-slate-200 text-lg">{alert.message}</p>
                       </div>
+
+                      {/* 🔥 NEW: Trigger Email Alert Button for specific real alerts */}
+                      <button
+                        onClick={() => triggerEmailAlert(alert.message, alert.severity, alert.type || 'Disaster')}
+                        disabled={emailSending}
+                        className="px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all whitespace-nowrap"
+                      >
+                        <Mail className="w-4 h-4 text-indigo-400" />
+                        {emailSending ? "Sending..." : "Email Authorities"}
+                      </button>
                     </div>
                   ))
                 ) : (
@@ -393,7 +434,7 @@ export default function App() {
             <div className="h-full bg-white/5 border border-white/5 rounded-3xl p-6 shadow-xl backdrop-blur-sm overflow-y-auto custom-scrollbar">
               <h2 className="text-xl font-bold flex items-center gap-3 mb-6">
                 <Layers className="w-6 h-6 text-indigo-400" />
-                AI Threat Simulation Engine (Flood & Fire)
+                AI Threat Simulation Engine
               </h2>
               <div className="grid md:grid-cols-2 gap-8">
                 <div className="space-y-6">
@@ -429,8 +470,8 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-[#0A0A0B] rounded-2xl border border-white/5 p-6 flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-purple-500/10" />
+                <div className="bg-[#0A0A0B] rounded-2xl border border-white/5 p-6 flex items-center justify-center relative overflow-hidden flex-col">
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 pointer-events-none" />
                   <div className="relative text-center w-full">
                     {simResult ? (
                       <>
@@ -459,9 +500,25 @@ export default function App() {
                             <div className="text-lg font-bold text-purple-400 text-center">{(simResult.storm_surge_probability * 100).toFixed(0)}%</div>
                           </div>
                         </div>
-                        <p className="text-xs text-slate-400 mt-6 bg-white/5 p-3 rounded-lg border border-white/5 italic">
+                        <p className="text-xs text-slate-400 mt-6 bg-white/5 p-3 rounded-lg border border-white/5 italic mb-6">
                           "{simResult.prediction_6h}"
                         </p>
+
+                        {/* 🔥 NEW: Trigger Email Alert Button for Simulations */}
+                        {(simResult.risk_level === 'critical' || simResult.risk_level === 'high') && (
+                          <button
+                            onClick={() => triggerEmailAlert(
+                              `Simulated ${simResult.risk_level.toUpperCase()} risk. Flood: ${(simResult.flood_probability * 100).toFixed(0)}%, Fire: ${(simResult.fire_probability * 100).toFixed(0)}%. Immediate preventative measures recommended.`,
+                              simResult.risk_level.toUpperCase(),
+                              simResult.fire_probability > simResult.flood_probability ? 'Fire' : 'Flood'
+                            )}
+                            disabled={emailSending}
+                            className="w-full py-3 bg-red-500/10 border border-red-500/50 text-red-400 hover:bg-red-500/20 rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+                          >
+                            <Mail className="w-5 h-5" />
+                            {emailSending ? "Broadcasting Alert..." : "Broadcast Email Warning to Authorities"}
+                          </button>
+                        )}
                       </>
                     ) : (
                       <div className="flex flex-col items-center justify-center text-slate-500 py-12">
