@@ -15,29 +15,29 @@ let startCronJobs = null;
 let pool = null;
 
 try {
-connectRedis = require("./src/config/redis").connectRedis;
+  connectRedis = require("./src/config/redis").connectRedis;
 } catch (e) {
-console.log("Redis module not found, skipping");
+  console.log("Redis module not found, skipping");
 }
 
 try {
-startCronJobs = require("./src/cron/jobs").startCronJobs;
+  startCronJobs = require("./src/cron/jobs").startCronJobs;
 } catch (e) {
-console.log("Cron module not found, skipping");
+  console.log("Cron module not found, skipping");
 }
 
 try {
-pool = require("./src/config/db");
+  pool = require("./src/config/db");
 } catch (e) {
-console.log("Database module not found");
+  console.log("Database module not found");
 }
 
 // Socket.io
 const io = new Server(server, {
-cors: {
-origin: "*",
-methods: ["GET", "POST"]
-}
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
 });
 
 // Middleware
@@ -48,154 +48,114 @@ app.use(express.json());
 
 // Root route
 app.get("/", (req, res) => {
-res.json({
-status: "active",
-message: "AI Disaster Early Warning System Engine Running"
-});
+  res.json({
+    status: "active",
+    message: "AI Disaster Early Warning System Engine Running"
+  });
 });
 
 // Locations
 app.get("/api/locations", async (req, res) => {
-try {
+  try {
+    if (!pool) {
+      throw new Error("Database not connected");
+    }
 
-```
-if (!pool) {
-  throw new Error("Database not connected");
-}
+    const result = await pool.query("SELECT * FROM Locations");
 
-const result = await pool.query("SELECT * FROM Locations");
-
-res.json(result.rows);
-```
-
-} catch (error) {
-
-```
-console.error(error);
-res.status(500).json({ error: error.message });
-```
-
-}
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Latest environmental data
 app.get("/api/latest-data", async (req, res) => {
-try {
+  try {
+    if (!pool) {
+      throw new Error("Database not connected");
+    }
 
-```
-if (!pool) {
-  throw new Error("Database not connected");
-}
+    const query = `
+      SELECT DISTINCT ON (location_id) *
+      FROM EnvironmentalData
+      ORDER BY location_id, timestamp DESC
+    `;
 
-const query = `
-  SELECT DISTINCT ON (location_id) *
-  FROM EnvironmentalData
-  ORDER BY location_id, timestamp DESC
-`;
+    const result = await pool.query(query);
 
-const result = await pool.query(query);
-
-res.json(result.rows);
-```
-
-} catch (error) {
-
-```
-console.error(error);
-res.status(500).json({ error: error.message });
-```
-
-}
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Alerts
 app.get("/api/alerts", async (req, res) => {
-try {
+  try {
+    if (!pool) {
+      throw new Error("Database not connected");
+    }
 
-```
-if (!pool) {
-  throw new Error("Database not connected");
-}
+    const result = await pool.query(
+      "SELECT * FROM Alerts ORDER BY timestamp DESC LIMIT 50"
+    );
 
-const result = await pool.query(
-  "SELECT * FROM Alerts ORDER BY timestamp DESC LIMIT 50"
-);
-
-res.json(result.rows);
-```
-
-} catch (error) {
-
-```
-console.error(error);
-res.status(500).json({ error: error.message });
-```
-
-}
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 /* ------------------ SOCKET ------------------ */
 
 io.on("connection", (socket) => {
+  console.log("Client connected:", socket.id);
 
-console.log("Client connected:", socket.id);
+  socket.emit("connection_established", {
+    message: "Connected to Disaster Warning Server"
+  });
 
-socket.emit("connection_established", {
-message: "Connected to Disaster Warning Server"
-});
-
-socket.on("disconnect", () => {
-console.log("Client disconnected:", socket.id);
-});
-
+  socket.on("disconnect", () => {
+    console.log("Client disconnected:", socket.id);
+  });
 });
 
 /* ------------------ SERVER START ------------------ */
 
 async function startServer() {
-
-try {
-
-```
-// Redis connection
-if (connectRedis && process.env.REDIS_URL) {
-
   try {
-    await connectRedis();
-    console.log("Redis connected");
-  } catch (err) {
-    console.log("Redis connection failed");
+    // Redis connection
+    if (connectRedis && process.env.REDIS_URL) {
+      try {
+        await connectRedis();
+        console.log("Redis connected");
+      } catch (err) {
+        console.log("Redis connection failed");
+      }
+    }
+
+    // Cron jobs
+    if (startCronJobs) {
+      try {
+        startCronJobs();
+        console.log("Cron jobs started");
+      } catch (err) {
+        console.log("Cron job start failed");
+      }
+    }
+
+    const PORT = process.env.PORT || 10000;
+
+    server.listen(PORT, () => {
+      console.log("Server running on port " + PORT);
+    });
+  } catch (error) {
+    console.error("Server failed to start:", error);
   }
-
-}
-
-// Cron jobs
-if (startCronJobs) {
-
-  try {
-    startCronJobs();
-    console.log("Cron jobs started");
-  } catch (err) {
-    console.log("Cron job start failed");
-  }
-
-}
-
-const PORT = process.env.PORT || 10000;
-
-server.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
-```
-
-} catch (error) {
-
-```
-console.error("Server failed to start:", error);
-```
-
-}
-
 }
 
 startServer();
