@@ -9,6 +9,21 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
   const [location, setLocation] = useState('');
   const [details, setDetails] = useState('');
 
+  const handleGPS = () => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLocation(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+        },
+        (err) => {
+          alert('Could not fetch location. Please check your permissions.');
+        }
+      );
+    } else {
+      alert('Geolocation is not supported by your browser.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('submitting');
@@ -35,8 +50,8 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center top-0 left-0 w-full h-full custom-scrollbar">
-      <div className="absolute inset-0 bg-[#0A0A0B]/80 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-[200] overflow-y-auto custom-scrollbar p-4 md:p-8 flex justify-center items-start">
+      <div className="fixed inset-0 bg-[#0A0A0B]/80 backdrop-blur-sm" onClick={onClose} />
       
       <AnimatePresence>
         {isOpen && (
@@ -44,7 +59,7 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="w-full max-w-lg bg-[#0F172A] border border-white/10 rounded-3xl shadow-2xl overflow-hidden relative z-10 my-8 mx-4"
+            className="w-full max-w-lg bg-[#0F172A] border border-white/10 rounded-3xl shadow-2xl overflow-hidden relative z-10 shrink-0 my-auto"
           >
             <div className="p-6 border-b border-white/10 flex justify-between items-center bg-[#1E293B]">
               <div className="flex items-center gap-3">
@@ -67,7 +82,7 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
                   <UploadCloud className="w-8 h-8 text-emerald-500" />
                 </div>
                 <h3 className="text-xl font-bold text-white">Report Submitted!</h3>
-                <p className="text-slate-400">AI verification initiated. Thank you for keeping the community safe.</p>
+                <p className="text-slate-400">🚨 Disaster report submitted successfully. Authorities have been notified.</p>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -97,10 +112,12 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
                      <input 
                        required
                        type="text" 
+                       value={location}
+                       onChange={(e) => setLocation(e.target.value)}
                        placeholder="Enter street or landmark..." 
                        className="w-full bg-[#1E293B] border border-white/5 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
                      />
-                     <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium bg-[#0F172A] px-2 py-1 rounded text-indigo-400">
+                     <button type="button" onClick={handleGPS} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium bg-[#0F172A] px-2 py-1 rounded text-indigo-400">
                        Use GPS
                      </button>
                   </div>
@@ -119,6 +136,8 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
                   <label className="block text-sm font-medium text-slate-300 mb-2">Additional Details</label>
                   <textarea 
                     rows={3}
+                    value={details}
+                    onChange={(e) => setDetails(e.target.value)}
                     placeholder="Describe the situation..." 
                     className="w-full bg-[#1E293B] border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors resize-none"
                   />

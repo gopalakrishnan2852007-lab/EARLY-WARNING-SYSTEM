@@ -149,6 +149,35 @@ app.post("/api/reports", async (req, res) => {
   }
 });
 
+// Simulation Proxy
+const axios = require("axios");
+app.post("/api/simulate", async (req, res) => {
+  try {
+    const aiServiceUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
+    const { rainfall, river_level, soil_moisture, wind_speed } = req.body;
+    
+    // Construct base environmental data
+    const envData = {
+      location_id: 0,
+      rainfall: Number(rainfall) || 0,
+      temperature: 25.0,
+      humidity: 80.0,
+      wind_speed: Number(wind_speed) || 0,
+      soil_moisture: Number(soil_moisture) || 0,
+      river_level: Number(river_level) || 0,
+      vegetation_dryness: 20.0
+    };
+
+    // Call AI Microservice predict_risk endpoint
+    const response = await axios.post(`${aiServiceUrl}/predict_risk`, envData);
+    
+    res.json(response.data);
+  } catch (error) {
+    console.error("Simulation Error:", error.message);
+    res.status(500).json({ error: "Failed to run AI simulation." });
+  }
+});
+
 /* ------------------ SOCKET ------------------ */
 
 io.on("connection", (socket) => {
