@@ -37,8 +37,8 @@ const transporter = nodemailer.createTransport({
 // ==========================================
 // 📱 SMS & VOICE CALLS SETUP (TWILIO)
 // ==========================================
-const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
-  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+const twilioClient = process.env.AC7b7281124ca9e32869d62409f8b9320c && process.env.02f5746198692e75388c797a6ec2b9be
+  ? twilio(process.env.AC7b7281124ca9e32869d62409f8b9320c, process.env.02f5746198692e75388c797a6ec2b9be)
   : null;
 
 async function sendSMSAlert() {
@@ -49,8 +49,8 @@ async function sendSMSAlert() {
   try {
     await twilioClient.messages.create({
       body: "🚨 Disaster Alert: High risk detected by AquaGuardAI system.",
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: process.env.ALERT_PHONE_NUMBER
+      from: process.env.7339448676,
+      to: process.env.7339448676
     });
     console.log("🚨 SMS Sent successfully.");
   } catch (error) {
@@ -66,8 +66,8 @@ async function makePhoneCall() {
   try {
     await twilioClient.calls.create({
       twiml: "<Response><Say>Warning. High disaster risk detected. Please take precaution immediately.</Say></Response>",
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: process.env.ALERT_PHONE_NUMBER
+      from: process.env.7339448676,
+      to: process.env.7339448676
     });
     console.log("📞 Call Initiated successfully.");
   } catch (error) {
@@ -77,13 +77,14 @@ async function makePhoneCall() {
 
 async function sendEmailAlert(data, riskLevel) {
   try {
-    const alertEmail = process.env.ALERT_EMAIL || process.env.EMAIL_USER;
+    const alertEmail = process.env.earlywarning34@gmail.com || process.env.earlywarning34@gmail.com;
     const mailOptions = {
-      from: `"AquaGuard AI System" <${process.env.EMAIL_USER}>`,
+      from: `"AquaGuard AI System" <${process.env.earlywarning34@gmail.com
+  }> `,
       to: alertEmail,
       subject: "AquaGuardAI Disaster Alert",
       html: `
-        <h2>🚨 High Disaster Risk Detected 🚨</h2>
+    < h2 >🚨 High Disaster Risk Detected 🚨</h2 >
         <p><strong>Risk Level:</strong> <span style="color:red">${riskLevel}</span></p>
         <ul>
           <li><strong>Rainfall:</strong> ${data.rainfall} mm</li>
@@ -92,7 +93,7 @@ async function sendEmailAlert(data, riskLevel) {
           <li><strong>Soil Moisture:</strong> ${data.soil_moisture}%</li>
         </ul>
         <p>Please take precaution immediately.</p>
-      `
+  `
     };
     await transporter.sendMail(mailOptions);
     console.log("📧 Email Sent successfully.");
@@ -147,26 +148,26 @@ async function fetchRealTNWeather() {
   try {
     const promises = TN_LOCATIONS.map(async (loc) => {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m&hourly=soil_moisture_0_to_7cm`;
-      const response = await axios.get(url, { timeout: 10000 });
-      const current = response.data.current;
-      const hourly = response.data.hourly;
+  const response = await axios.get(url, { timeout: 10000 });
+  const current = response.data.current;
+  const hourly = response.data.hourly;
 
-      liveSensorData[loc.id] = {
-        ...liveSensorData[loc.id],
-        temperature: current.temperature_2m,
-        humidity: current.relative_humidity_2m,
-        rainfall: current.precipitation,
-        wind_speed: current.wind_speed_10m,
-        soil_moisture: hourly.soil_moisture_0_to_7cm[0] * 100 || 45.0,
-        timestamp: new Date()
-      };
-    });
+  liveSensorData[loc.id] = {
+    ...liveSensorData[loc.id],
+    temperature: current.temperature_2m,
+    humidity: current.relative_humidity_2m,
+    rainfall: current.precipitation,
+    wind_speed: current.wind_speed_10m,
+    soil_moisture: hourly.soil_moisture_0_to_7cm[0] * 100 || 45.0,
+    timestamp: new Date()
+  };
+});
 
-    await Promise.all(promises);
-    console.log("✅ Synced accurate real-time weather data for Tamil Nadu");
+await Promise.all(promises);
+console.log("✅ Synced accurate real-time weather data for Tamil Nadu");
   } catch (error) {
-    console.error("⚠️ Weather API Sync Failed. Using base heuristics.");
-  }
+  console.error("⚠️ Weather API Sync Failed. Using base heuristics.");
+}
 }
 
 fetchRealTNWeather();
