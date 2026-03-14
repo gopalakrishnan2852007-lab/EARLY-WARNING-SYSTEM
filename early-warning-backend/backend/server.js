@@ -6,6 +6,11 @@ const { Server } = require("socket.io");
 const axios = require("axios");
 const nodemailer = require("nodemailer");
 const twilio = require("twilio");
+const dns = require("dns");
+
+// 🚨 CRITICAL FIX FOR RENDER EMAIL TIMEOUT 🚨
+// This forces Render to use IPv4 instead of IPv6, fixing the "Connection timeout" to Gmail
+dns.setDefaultResultOrder('ipv4first');
 
 dotenv.config();
 
@@ -28,21 +33,19 @@ app.use(express.json());
 const ALERT_PHONE = process.env.ALERT_PHONE_NUMBER;
 
 if (ALERT_PHONE && !ALERT_PHONE.startsWith("+")) {
-  console.warn("⚠️ WARNING: ALERT_PHONE_NUMBER does not start with '+'. Twilio requires E.164 format (e.g., +919876543210).");
+  console.warn("⚠️ WARNING: ALERT_PHONE_NUMBER does not start with '+'. Twilio requires E.164 format.");
 }
 
 /* ======================================================
    EMAIL ALERT ENGINE
 ====================================================== */
 
-// Updated for Render deployment (Port 465 is required on Render)
+// Simplified Gmail Config - The DNS fix at the top makes this work on Render
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true, 
+  service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+    pass: process.env.EMAIL_PASS // MUST be a 16-character App Password
   }
 });
 
@@ -59,7 +62,7 @@ const twilioClient = twilio(
 async function sendSMSAlert() {
   try {
     await twilioClient.messages.create({
-      body: "🚨 AquaGuardAI ALERT: High disaster risk detected!",
+      body: "🚨 AquaGuardAI ALERT: High disaster risk detected! Please check the dashboard immediately.",
       from: process.env.TWILIO_PHONE_NUMBER,
       to: ALERT_PHONE
     });
@@ -71,12 +74,26 @@ async function sendSMSAlert() {
   }
 }
 
-/* PHONE CALL ALERT */
+/* PHONE CALL ALERT (FIXED "BLABBERING" ISSUE) */
 async function makePhoneCall() {
   try {
+    // Using Polly.Aditi (Indian English Natural AI Voice) with SSML for emergency pauses
+    const twimlMessage = `
+      <Response>
+        <Say voice="Polly.Aditi">
+          Attention. This is an emergency alert from Aqua Guard A I.
+          <break time="1s"/> 
+          A High disaster risk has been detected in your monitored area.
+          <break time="1s"/> 
+          Please take precautionary measures immediately.
+          <break time="1s"/> 
+          I repeat. High disaster risk detected. Please stay safe.
+        </Say>
+      </Response>
+    `;
+
     await twilioClient.calls.create({
-      twiml:
-        "<Response><Say>Warning. High disaster risk detected by Aqua Guard AI. Please take precaution immediately.</Say></Response>",
+      twiml: twimlMessage,
       from: process.env.TWILIO_PHONE_NUMBER,
       to: ALERT_PHONE
     });
@@ -94,16 +111,21 @@ async function sendEmailAlert(data, riskLevel) {
     const mailOptions = {
       from: `"AquaGuard AI System" <${process.env.EMAIL_USER}>`,
       to: process.env.ALERT_EMAIL,
-      subject: "🚨 AquaGuardAI Disaster Alert",
+      subject: "🚨 AquaGuard AI Disaster Alert",
       html: `
-      <h2>🚨 High Disaster Risk Detected</h2>
-      <p><strong>Risk Level:</strong> <span style="color:red; text-transform:uppercase;">${riskLevel}</span></p>
-      <ul>
-        <li>Rainfall: ${data.rainfall} mm</li>
-        <li>River Level: ${data.river_level} m</li>
-        <li>Wind Speed: ${data.wind_speed} km/h</li>
-        <li>Soil Moisture: ${data.soil_moisture}%</li>
-      </ul>
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid red; border-radius: 10px;">
+        <h2 style="color: red;">🚨 High Disaster Risk Detected</h2>
+        <p><strong>Risk Level:</strong> <span style="color:red; text-transform:uppercase; font-size: 18px;">${riskLevel}</span></p>
+        <hr/>
+        <h3>Current Sensor Readings:</h3>
+        <ul>
+          <li><strong>Rainfall:</strong> ${data.rainfall} mm</li>
+          <li><strong>River Level:</strong> ${data.river_level} m</li>
+          <li><strong>Wind Speed:</strong> ${data.wind_speed} km/h</li>
+          <li><strong>Soil Moisture:</strong> ${data.soil_moisture}%</li>
+        </ul>
+        <p style="margin-top: 20px;">Please check the AquaGuard AI dashboard for live updates and take necessary precautions.</p>
+      </div>
       `
     };
 
@@ -126,7 +148,6 @@ async function triggerAlerts(sensorData) {
   if (risks.risk_level === "high" || risks.risk_level === "critical") {
     console.log(`🚨 Triggering Alerts for Risk Level: ${risks.risk_level}`);
 
-    // Wait for all alerts to process and collect their results
     const smsResult = await sendSMSAlert();
     const callResult = await makePhoneCall();
     const emailResult = await sendEmailAlert(sensorData, risks.risk_level);
@@ -258,14 +279,10 @@ app.get("/simulate-risk", async (req, res) => {
       humidity: 20
     };
 
-    // Wait for the trigger function and capture results
     const results = await triggerAlerts(simulatedData);
-
-    // Check if any of the alerts returned success: false
     const failures = results.filter(r => r.success === false);
 
     if (failures.length > 0) {
-      // Send back exactly what failed so you can debug it
       res.status(500).json({
         message: "⚠️ Alerts executed, but some failed.",
         failed_alerts: failures,
@@ -290,9 +307,7 @@ app.get("/simulate-risk", async (req, res) => {
 setInterval(() => {
   TN_LOCATIONS.forEach((loc) => {
     let current = liveSensorData[loc.id];
-
-    current.temperature =
-      Number(current.temperature) + (Math.random() * 0.2 - 0.1);
+    current.temperature = Number(current.temperature) + (Math.random() * 0.2 - 0.1);
 
     io.emit("sensorUpdate", {
       location_id: loc.id,
