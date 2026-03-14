@@ -23,11 +23,23 @@ app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 /* ======================================================
+   ENVIRONMENT VARIABLE CHECK
+====================================================== */
+const ALERT_PHONE = process.env.ALERT_PHONE_NUMBER;
+
+if (ALERT_PHONE && !ALERT_PHONE.startsWith("+")) {
+  console.warn("⚠️ WARNING: ALERT_PHONE_NUMBER does not start with '+'. Twilio requires E.164 format (e.g., +919876543210).");
+}
+
+/* ======================================================
    EMAIL ALERT ENGINE
 ====================================================== */
 
+// Updated for Render deployment (Port 465 is required on Render)
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true, 
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
@@ -43,8 +55,6 @@ const twilioClient = twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-const ALERT_PHONE = process.env.ALERT_PHONE_NUMBER;
-
 /* SMS ALERT */
 async function sendSMSAlert() {
   try {
@@ -53,10 +63,11 @@ async function sendSMSAlert() {
       from: process.env.TWILIO_PHONE_NUMBER,
       to: ALERT_PHONE
     });
-
-    console.log("📱 SMS Sent");
+    console.log("📱 SMS Sent Successfully");
+    return { type: "SMS", success: true };
   } catch (error) {
-    console.error("SMS Error:", error.message);
+    console.error("❌ SMS Error:", error.message);
+    return { type: "SMS", success: false, error: error.message };
   }
 }
 
@@ -69,10 +80,11 @@ async function makePhoneCall() {
       from: process.env.TWILIO_PHONE_NUMBER,
       to: ALERT_PHONE
     });
-
-    console.log("📞 Phone Call Sent");
+    console.log("📞 Phone Call Sent Successfully");
+    return { type: "Call", success: true };
   } catch (error) {
-    console.error("Call Error:", error.message);
+    console.error("❌ Call Error:", error.message);
+    return { type: "Call", success: false, error: error.message };
   }
 }
 
@@ -85,20 +97,22 @@ async function sendEmailAlert(data, riskLevel) {
       subject: "🚨 AquaGuardAI Disaster Alert",
       html: `
       <h2>🚨 High Disaster Risk Detected</h2>
-      <p><strong>Risk Level:</strong> ${riskLevel}</p>
+      <p><strong>Risk Level:</strong> <span style="color:red; text-transform:uppercase;">${riskLevel}</span></p>
       <ul>
-        <li>Rainfall: ${data.rainfall}</li>
-        <li>River Level: ${data.river_level}</li>
-        <li>Wind Speed: ${data.wind_speed}</li>
-        <li>Soil Moisture: ${data.soil_moisture}</li>
+        <li>Rainfall: ${data.rainfall} mm</li>
+        <li>River Level: ${data.river_level} m</li>
+        <li>Wind Speed: ${data.wind_speed} km/h</li>
+        <li>Soil Moisture: ${data.soil_moisture}%</li>
       </ul>
       `
     };
 
     await transporter.sendMail(mailOptions);
-    console.log("📧 Email Sent");
+    console.log("📧 Email Sent Successfully");
+    return { type: "Email", success: true };
   } catch (error) {
-    console.error("Email Error:", error.message);
+    console.error("❌ Email Error:", error.message);
+    return { type: "Email", success: false, error: error.message };
   }
 }
 
@@ -110,12 +124,17 @@ async function triggerAlerts(sensorData) {
   const risks = calculateRisks(sensorData);
 
   if (risks.risk_level === "high" || risks.risk_level === "critical") {
-    console.log("🚨 Triggering Alerts");
+    console.log(`🚨 Triggering Alerts for Risk Level: ${risks.risk_level}`);
 
-    await sendSMSAlert();
-    await makePhoneCall();
-    await sendEmailAlert(sensorData, risks.risk_level);
+    // Wait for all alerts to process and collect their results
+    const smsResult = await sendSMSAlert();
+    const callResult = await makePhoneCall();
+    const emailResult = await sendEmailAlert(sensorData, risks.risk_level);
+
+    return [smsResult, callResult, emailResult];
   }
+  
+  return [{ message: "Risk level safe, no alerts triggered" }];
 }
 
 /* ======================================================
@@ -158,7 +177,6 @@ async function fetchRealTNWeather() {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m`;
 
       const response = await axios.get(url);
-
       const current = response.data.current;
 
       liveSensorData[loc.id] = {
@@ -174,7 +192,7 @@ async function fetchRealTNWeather() {
     await Promise.all(promises);
     console.log("✅ Weather Updated");
   } catch (error) {
-    console.log("Weather API Error");
+    console.error("⚠️ Weather API Error:", error.message);
   }
 }
 
@@ -229,22 +247,40 @@ app.get("/api/latest-data", (req, res) => {
 });
 
 /* TEST ALERT ROUTE */
-
 app.get("/simulate-risk", async (req, res) => {
-  const simulatedData = {
-    rainfall: 40,
-    river_level: 6,
-    wind_speed: 60,
-    soil_moisture: 10,
-    temperature: 38,
-    humidity: 20
-  };
+  try {
+    const simulatedData = {
+      rainfall: 40,
+      river_level: 6,
+      wind_speed: 60,
+      soil_moisture: 10,
+      temperature: 38,
+      humidity: 20
+    };
 
-  await triggerAlerts(simulatedData);
+    // Wait for the trigger function and capture results
+    const results = await triggerAlerts(simulatedData);
 
-  res.json({
-    message: "🚨 Alerts triggered successfully"
-  });
+    // Check if any of the alerts returned success: false
+    const failures = results.filter(r => r.success === false);
+
+    if (failures.length > 0) {
+      // Send back exactly what failed so you can debug it
+      res.status(500).json({
+        message: "⚠️ Alerts executed, but some failed.",
+        failed_alerts: failures,
+        all_results: results
+      });
+    } else {
+      res.status(200).json({
+        message: "✅ All alerts triggered successfully!",
+        details: results
+      });
+    }
+
+  } catch (error) {
+    res.status(500).json({ message: "Server error during simulation", error: error.message });
+  }
 });
 
 /* ======================================================
