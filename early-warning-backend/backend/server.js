@@ -5,6 +5,7 @@ const dotenv = require("dotenv");
 const { Server } = require("socket.io");
 const axios = require("axios");
 const nodemailer = require("nodemailer"); // 🔥 Added Nodemailer
+const twilio = require("twilio");
 
 dotenv.config();
 const app = express();
@@ -32,6 +33,83 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS || 'Gopal5417M'   // Put your 16-digit app password here or in .env
   }
 });
+
+// ==========================================
+// 📱 SMS & VOICE CALLS SETUP (TWILIO)
+// ==========================================
+const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+  : null;
+
+async function sendSMSAlert() {
+  if (!twilioClient) {
+    console.warn("⚠️ Twilio disconnected. Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.");
+    return;
+  }
+  try {
+    await twilioClient.messages.create({
+      body: "🚨 Disaster Alert: High risk detected by AquaGuardAI system.",
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: process.env.ALERT_PHONE_NUMBER
+    });
+    console.log("🚨 SMS Sent successfully.");
+  } catch (error) {
+    console.error("SMS Error:", error.message);
+  }
+}
+
+async function makePhoneCall() {
+  if (!twilioClient) {
+    console.warn("⚠️ Twilio disconnected. Call failed.");
+    return;
+  }
+  try {
+    await twilioClient.calls.create({
+      twiml: "<Response><Say>Warning. High disaster risk detected. Please take precaution immediately.</Say></Response>",
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: process.env.ALERT_PHONE_NUMBER
+    });
+    console.log("📞 Call Initiated successfully.");
+  } catch (error) {
+    console.error("Call Error:", error.message);
+  }
+}
+
+async function sendEmailAlert(data, riskLevel) {
+  try {
+    const alertEmail = process.env.ALERT_EMAIL || process.env.EMAIL_USER;
+    const mailOptions = {
+      from: `"AquaGuard AI System" <${process.env.EMAIL_USER}>`,
+      to: alertEmail,
+      subject: "AquaGuardAI Disaster Alert",
+      html: `
+        <h2>🚨 High Disaster Risk Detected 🚨</h2>
+        <p><strong>Risk Level:</strong> <span style="color:red">${riskLevel}</span></p>
+        <ul>
+          <li><strong>Rainfall:</strong> ${data.rainfall} mm</li>
+          <li><strong>River Level:</strong> ${data.river_level} m</li>
+          <li><strong>Wind Speed:</strong> ${data.wind_speed} km/h</li>
+          <li><strong>Soil Moisture:</strong> ${data.soil_moisture}%</li>
+        </ul>
+        <p>Please take precaution immediately.</p>
+      `
+    };
+    await transporter.sendMail(mailOptions);
+    console.log("📧 Email Sent successfully.");
+  } catch (error) {
+    console.error("Email Alert Error:", error.message);
+  }
+}
+
+async function triggerAlerts(sensorData) {
+  const risks = calculateRisks(sensorData);
+  if (risks.risk_level === 'high' || risks.risk_level === 'critical' || sensorData.forceAlert) { // Adding forceAlert flag for simulate route
+    console.log("🔔 Triggering Disaster Alerts!");
+    await sendSMSAlert();
+    await makePhoneCall();
+    await sendEmailAlert(sensorData, risks.risk_level);
+  }
+}
 
 // ==========================================
 // 📍 TAMIL NADU EXACT COORDINATES
@@ -159,7 +237,34 @@ app.post("/api/simulate", (req, res) => {
   }
 });
 
-// 🔥 NEW ROUTE: Trigger Email Alert
+// 🔥 NEW ROUTE: Simulate Risk (Triggers alerts)
+app.post("/simulate-risk", async (req, res) => {
+  try {
+    const simulatedData = {
+      rainfall: 30,
+      river_level: 1.6,
+      wind_speed: 45,
+      soil_moisture: 10,
+      temperature: 35,
+      humidity: 30,
+      forceAlert: true // Forcing alert dispatch
+    };
+
+    console.log("⚠️ /simulate-risk endpoint hit. Simulating HIGH risk data.");
+    await triggerAlerts(simulatedData);
+
+    res.json({
+      success: true,
+      message: "Simulated high risk conditions. Alerts triggered.",
+      simulatedData
+    });
+  } catch (error) {
+    console.error("Failed to simulate risk:", error);
+    res.status(500).json({ error: "Failed to simulate risk" });
+  }
+});
+
+// 🔥 EXISTING ROUTE: Trigger Email Alert
 app.post("/api/send-email-alert", async (req, res) => {
   try {
     const { message, severity, type } = req.body;
