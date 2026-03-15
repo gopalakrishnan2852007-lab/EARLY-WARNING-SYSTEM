@@ -8,6 +8,7 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
 
   const [location, setLocation] = useState('');
   const [details, setDetails] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const handleGPS = () => {
     if ('geolocation' in navigator) {
@@ -29,10 +30,17 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
     setStatus('submitting');
 
     try {
+      const formData = new FormData();
+      formData.append('type', reportType);
+      formData.append('location', location);
+      formData.append('details', details);
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
+
       const res = await fetch('https://early-warning-system-fh1y.onrender.com/api/reports', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: reportType, location, details })
+        body: formData
       });
 
       if (!res.ok) throw new Error("Backend rejected report");
@@ -44,6 +52,7 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
         onClose();
         setLocation('');
         setDetails('');
+        setImageFile(null);
       }, 2000);
     } catch (error) {
       console.error(error);
@@ -137,6 +146,7 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       onChange={(e) => {
                         if (e.target.files && e.target.files.length > 0) {
+                          setImageFile(e.target.files[0]);
                           alert(`File selected: ${e.target.files[0].name}`);
                         }
                       }}

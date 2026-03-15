@@ -7,6 +7,11 @@ const axios = require("axios");
 const nodemailer = require("nodemailer");
 const twilio = require("twilio");
 const dns = require("dns");
+const multer = require("multer");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+const upload = multer({ storage: multer.memoryStorage() });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 // 🚨 CRITICAL FIX FOR RENDER EMAIL TIMEOUT 🚨
 // This forces Render to use IPv4 instead of IPv6, fixing the "Connection timeout" to Gmail
@@ -293,35 +298,92 @@ app.post("/api/simulate", async (req, res) => {
   }
 });
 
-app.post("/api/reports", async (req, res) => {
+app.post("/api/reports", upload.single('image'), async (req, res) => {
   try {
     const { type, location, details } = req.body;
+    const file = req.file;
     
-    // Map semantic report to sensor logic to trip backend alerts
-    const simulatedData = {
-        rainfall: type === 'flood' ? 150 : 0,
-        river_level: type === 'flood' ? 8 : 1,
-        wind_speed: (type === 'fire' || type === 'smoke') ? 80 : 20,
-        soil_moisture: (type === 'fire' || type === 'smoke') ? 5 : 50,
-        temperature: (type === 'fire' || type === 'smoke') ? 45 : 25,
-        humidity: (type === 'fire' || type === 'smoke') ? 10 : 80
+    let aiEvaluation = {
+        visual_evidence: "No image provided. Relying on user text.",
+        risk_level: "High", // Fallback to High to trigger alert if no image
+        trigger_call: true
     };
+    
+    // If an image is provided, use Gemini Vision to evaluate it realistically
+    if (file && genAI.apiKey) {
+      try {
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const prompt = `
+          The user is reporting a disaster incident of type: "${type}" at location: "${location}". 
+          User's description: "${details}".
+          
+          Ignore urgent text if the visual evidence is benign. Rely strictly on the image. 
+          Output strictly in JSON with fields: 
+          - visual_evidence (string: describe what you see)
+          - risk_level (string: "Low", "Medium", "High")
+          - trigger_call (boolean)
+        `;
+        
+        const imagePart = {
+          inlineData: {
+            data: file.buffer.toString("base64"),
+            mimeType: file.mimetype
+          }
+        };
 
-    // Trigger SMS and Phone call
-    const results = await triggerAlerts(simulatedData);
+        const result = await model.generateContent([prompt, imagePart]);
+        const responseText = result.response.text();
+        
+        // Extract JSON from potential markdown block (e.g., \`\`\`json ... \`\`\`)
+        const cleanedText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        aiEvaluation = JSON.parse(cleanedText);
+        
+      } catch (aiErr) {
+        console.error("AI Evaluation failed, falling back to manual mapping:", aiErr);
+      }
+    }
 
-    // Broadcast report to all frontend instances to update dashboards instantly
+    // 1. Immediately respond to frontend to kill the blocking loading spinner!
     const newAlert = {
         id: Math.random().toString(36).substring(7),
-        type: type.toUpperCase(),
-        severity: 'CRITICAL',
-        message: `COMMUNITY REPORT: ${type.toUpperCase()} spotted at ${location || 'Unknown location'}. ${details}`,
+        type: type ? type.toUpperCase() : 'UNKNOWN',
+        severity: aiEvaluation.risk_level.toUpperCase(),
+        message: `COMMUNITY REPORT: ${type ? type.toUpperCase() : 'UNKNOWN'} spotted at ${location || 'Unknown location'}. AI Assessment: ${aiEvaluation.visual_evidence}`,
         timestamp: new Date().toISOString()
     };
     
-    io.emit("new_alert", newAlert);
+    res.status(200).json({ 
+        success: true, 
+        newAlert, 
+        aiEvaluation 
+    });
+
+    // 2. Asynchronous Background Task: Trigger Global Websockets and Twilio calls decoupled from HTTP
+    (async () => {
+       try {
+         // Broadcast report to all frontend instances to update dashboards instantly
+         io.emit("new_alert", newAlert);
+         
+         // Trigger SMS and Phone call ONLY if risk is High or trigger_call is true
+         if (aiEvaluation.risk_level === "High" || aiEvaluation.trigger_call) {
+             console.log("⚠️ AI Confirmed High Risk. Triggering Twilio Background Call...");
+             const simulatedData = {
+                rainfall: type === 'flood' ? 150 : 0,
+                river_level: type === 'flood' ? 8 : 1,
+                wind_speed: (type === 'fire' || type === 'smoke') ? 80 : 20,
+                soil_moisture: (type === 'fire' || type === 'smoke') ? 5 : 50,
+                temperature: (type === 'fire' || type === 'smoke') ? 45 : 25,
+                humidity: (type === 'fire' || type === 'smoke') ? 10 : 80
+             };
+             await triggerAlerts(simulatedData);
+         } else {
+             console.log(`✅ AI Evaluated report as ${aiEvaluation.risk_level}. No panic triggers fired.`);
+         }
+       } catch (bgError) {
+         console.error("Background task failed:", bgError);
+       }
+    })();
     
-    res.status(200).json({ success: true, newAlert, alerts: results });
   } catch (error) {
     res.status(500).json({ message: "Failed to submit report", error: error.message });
   }
