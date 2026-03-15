@@ -547,7 +547,10 @@ export default function App() {
       </main>
 
       <AIChatAssistant />
-      <CommunityReportModal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} />
+      <CommunityReportModal 
+        isOpen={isReportOpen} 
+        onClose={() => setIsReportOpen(false)} 
+      />
     </div>
   );
 }

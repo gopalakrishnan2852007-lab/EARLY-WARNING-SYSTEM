@@ -267,36 +267,63 @@ app.get("/api/latest-data", (req, res) => {
   res.json(Object.values(liveSensorData));
 });
 
-/* TEST ALERT ROUTE */
-app.get("/simulate-risk", async (req, res) => {
+/* ======================================================
+   SIMULATION & REPORT ROUTES
+====================================================== */
+
+app.post("/api/simulate", async (req, res) => {
   try {
-    const simulatedData = {
-      rainfall: 40,
-      river_level: 6,
-      wind_speed: 60,
-      soil_moisture: 10,
-      temperature: 38,
-      humidity: 20
-    };
+    const projectedData = req.body;
+    
+    // Calculate risks from frontend simulation sliders
+    const prediction = calculateRisks(projectedData);
+    prediction.landslide_probability = 0; 
+    prediction.storm_surge_probability = 0;
+    prediction.prediction_6h = `Simulated scenario generated. Evaluated risk level: ${prediction.risk_level.toUpperCase()}.`;
 
-    const results = await triggerAlerts(simulatedData);
-    const failures = results.filter(r => r.success === false);
+    // Trigger phone/sms if critical/high
+    const alertResults = await triggerAlerts(projectedData);
 
-    if (failures.length > 0) {
-      res.status(500).json({
-        message: "⚠️ Alerts executed, but some failed.",
-        failed_alerts: failures,
-        all_results: results
-      });
-    } else {
-      res.status(200).json({
-        message: "✅ All alerts triggered successfully!",
-        details: results
-      });
-    }
-
+    res.json({
+      ...prediction,
+      alerts: alertResults
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error during simulation", error: error.message });
+  }
+});
+
+app.post("/api/reports", async (req, res) => {
+  try {
+    const { type, location, details } = req.body;
+    
+    // Map semantic report to sensor logic to trip backend alerts
+    const simulatedData = {
+        rainfall: type === 'flood' ? 150 : 0,
+        river_level: type === 'flood' ? 8 : 1,
+        wind_speed: (type === 'fire' || type === 'smoke') ? 80 : 20,
+        soil_moisture: (type === 'fire' || type === 'smoke') ? 5 : 50,
+        temperature: (type === 'fire' || type === 'smoke') ? 45 : 25,
+        humidity: (type === 'fire' || type === 'smoke') ? 10 : 80
+    };
+
+    // Trigger SMS and Phone call
+    const results = await triggerAlerts(simulatedData);
+
+    // Broadcast report to all frontend instances to update dashboards instantly
+    const newAlert = {
+        id: Math.random().toString(36).substring(7),
+        type: type.toUpperCase(),
+        severity: 'CRITICAL',
+        message: `COMMUNITY REPORT: ${type.toUpperCase()} spotted at ${location || 'Unknown location'}. ${details}`,
+        timestamp: new Date().toISOString()
+    };
+    
+    io.emit("new_alert", newAlert);
+    
+    res.status(200).json({ success: true, newAlert, alerts: results });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to submit report", error: error.message });
   }
 });
 

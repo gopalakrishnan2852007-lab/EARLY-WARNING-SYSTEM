@@ -29,12 +29,16 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
     setStatus('submitting');
 
     try {
-      await fetch('https://early-warning-system-fh1y.onrender.com/api/reports', {
+      const res = await fetch('https://early-warning-system-fh1y.onrender.com/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: reportType, location, details })
       });
+
+      if (!res.ok) throw new Error("Backend rejected report");
+      
       setStatus('success');
+      
       setTimeout(() => {
         setStatus('idle');
         onClose();
