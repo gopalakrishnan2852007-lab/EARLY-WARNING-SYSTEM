@@ -11,8 +11,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Focus map initially on India bounds
-const DEFAULT_CENTER = [20.5937, 78.9629];
+// Focus map initially on Tamil Nadu
+const DEFAULT_CENTER = [11.1271, 78.6569];
 
 export default function DisasterMap({ sensors, risks, locations = {} }: { sensors: any, risks: any, locations?: any }) {
 
@@ -22,7 +22,7 @@ export default function DisasterMap({ sensors, risks, locations = {} }: { sensor
     const keys = Object.keys(sensors);
     if (keys.length === 0) {
       return [
-        { id: 'mock1', lat: 28.6139, lng: 77.2090, type: 'flood', riskLevel: 'high', riskScore: 0.8, color: '#ef4444', label: 'Processing Live Network...' },
+        { id: 'mock1', lat: 11.1271, lng: 78.6569, type: 'flood', riskLevel: 'high', riskScore: 0.8, color: '#ef4444', label: 'Processing Live Network...' },
       ];
     }
 
@@ -44,8 +44,8 @@ export default function DisasterMap({ sensors, risks, locations = {} }: { sensor
       else if (r.landslide_probability > r.storm_surge_probability) type = 'landslide';
       else if (r.storm_surge_probability) type = 'storm_surge';
 
-      const lat = loc?.latitude || (20.5937 + (Math.random() * 2 - 1));
-      const lng = loc?.longitude || (78.9629 + (Math.random() * 2 - 1));
+      const lat = loc?.latitude || (11.1271 + (Math.random() * 1.5 - 0.75));
+      const lng = loc?.longitude || (78.6569 + (Math.random() * 1.5 - 0.75));
       const locName = loc?.name ? `Sensor Node: ${loc.name}` : `Sensor Node ${locId}`;
 
       return {
@@ -65,7 +65,7 @@ export default function DisasterMap({ sensors, risks, locations = {} }: { sensor
     <div className="w-full h-full relative z-10 bg-[#0A0A0B]">
       <MapContainer
         center={DEFAULT_CENTER as any}
-        zoom={5}
+        zoom={7}
         style={{ height: '100%', width: '100%', background: '#0F172A' }}
         zoomControl={false}
       >
@@ -83,7 +83,9 @@ export default function DisasterMap({ sensors, risks, locations = {} }: { sensor
               color: node.color,
               fillColor: node.color,
               fillOpacity: 0.35,
-              weight: 2
+              weight: 2,
+              className: node.risk?.risk_level === 'critical' ? 'animate-pulse text-red-500' : 
+                         node.risk?.risk_level === 'high' ? 'animate-pulse text-orange-500' : ''
             }}
           >
             <Popup className="custom-popup bg-slate-900 border-none rounded-xl">

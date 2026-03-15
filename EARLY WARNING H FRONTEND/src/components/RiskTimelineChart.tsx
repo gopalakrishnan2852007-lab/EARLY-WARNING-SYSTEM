@@ -10,11 +10,18 @@ interface TimelineData {
 
 export default function RiskTimelineChart({ data }: { data: TimelineData[] }) {
 
-  // Use dummy data if no real data is streamed yet
-  const chartData = data && data.length > 0 ? data : [
-    { time: 'T-00:00', flood: 0, landslide: 0, surge: 0 },
-    { time: 'T-05:00', flood: 0, landslide: 0, surge: 0 },
+  // Generate realistic-looking initial forecast data for Tamil Nadu bounds
+  const mockData = [
+    { time: 'T-12:00', flood: 15, landslide: 5, surge: 10 },
+    { time: 'T-10:00', flood: 18, landslide: 8, surge: 12 },
+    { time: 'T-08:00', flood: 20, landslide: 10, surge: 15 },
+    { time: 'T-06:00', flood: 25, landslide: 12, surge: 20 },
+    { time: 'T-04:00', flood: 35, landslide: 15, surge: 25 },
+    { time: 'T-02:00', flood: 40, landslide: 18, surge: 30 },
+    { time: 'Now', flood: 45, landslide: 20, surge: 35 },
   ];
+
+  const chartData = data && data.length > 0 ? data : mockData;
 
   return (
     <div className="w-full h-72">

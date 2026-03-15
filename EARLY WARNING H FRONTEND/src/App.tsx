@@ -228,6 +228,17 @@ export default function App() {
         </div>
       )}
 
+      {/* FLASHING GLOBAL RISK BANNER */}
+      {(alerts.length > 0 && (alerts[0].severity === 'CRITICAL' || alerts[0].severity === 'WARNING')) && (
+        <div className="fixed top-0 left-0 right-0 z-[300] bg-red-600/90 backdrop-blur-md text-white px-4 py-3 shadow-[0_0_30px_rgba(220,38,38,0.5)] flex items-center justify-center gap-3 animate-pulse border-b border-red-400">
+          <AlertTriangle className="w-6 h-6 animate-bounce" />
+          <div className="text-center">
+            <span className="font-black tracking-widest uppercase mr-2">{alerts[0].severity} ALERT:</span>
+            <span className="font-medium">{alerts[0].message}</span>
+          </div>
+        </div>
+      )}
+
       {/* ---------- SIDEBAR (DESKTOP) ---------- */}
       <aside className="hidden md:flex w-20 lg:w-64 border-r border-white/5 bg-[#0D0D0F] flex-col justify-between shrink-0 relative z-20">
         <div>

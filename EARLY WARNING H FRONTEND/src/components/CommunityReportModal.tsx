@@ -43,7 +43,8 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
       }, 2000);
     } catch (error) {
       console.error(error);
-      setStatus('idle');
+      setStatus('error');
+      setTimeout(() => setStatus('idle'), 3000);
     }
   };
 
@@ -125,11 +126,21 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
 
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Media Evidence (Required by AI)</label>
-                  <div className="w-full border-2 border-dashed border-white/10 rounded-xl p-8 hover:bg-[#1E293B] transition-colors cursor-pointer group flex flex-col items-center justify-center">
+                  <label className="w-full border-2 border-dashed border-white/10 rounded-xl p-8 hover:bg-[#1E293B] transition-colors cursor-pointer group flex flex-col items-center justify-center relative">
+                    <input 
+                      type="file" 
+                      accept="image/*,video/*"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          alert(`File selected: ${e.target.files[0].name}`);
+                        }
+                      }}
+                    />
                     <Camera className="w-8 h-8 text-slate-500 group-hover:text-amber-400 mb-3 transition-colors" />
                     <span className="text-sm font-medium text-slate-400 group-hover:text-white transition-colors">Click to upload photo or video</span>
                     <span className="text-xs text-slate-500 mt-1">Supports JPG, PNG, MP4</span>
-                  </div>
+                  </label>
                 </div>
 
                 <div>
@@ -142,6 +153,12 @@ export default function CommunityReportModal({ isOpen, onClose }: { isOpen: bool
                     className="w-full bg-[#1E293B] border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors resize-none"
                   />
                 </div>
+
+                {status === 'error' && (
+                  <div className="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                    Failed to submit report. Please try again.
+                  </div>
+                )}
 
                 <div className="pt-4 flex gap-4">
                   <button
