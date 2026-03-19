@@ -1,0 +1,5 @@
+{
+  "name": "SlideForge AI",
+  "description": "AI-powered presentation generator that creates structured slide content using Gemini.",
+  "requestFramePermissions": []
+}
